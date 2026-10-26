@@ -48,6 +48,7 @@ details.done{margin-top:18px}details.done>summary{cursor:pointer;font-weight:600
 .by{display:block;width:100%;text-align:left;font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:10px 0;cursor:pointer}
 .by:focus-visible{outline:2px solid var(--acc);outline-offset:2px}.bn{font-size:18px;margin:12px 0 0}.back{margin-top:6px}
 details.bk{margin-top:28px}details.bk summary{cursor:pointer;font-weight:600;min-height:32px}
+tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-top:6px}
 </style></head><body><div class="wrap">
 <h1>Cek Order</h1>
 <p class="sub">PDF Instruction Sheet (IS) jadi order, Excel jadi jumlah stock fresh yang sudah didapat.</p>
@@ -81,6 +82,8 @@ try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.isArray(s.orders))
 if(!Array.isArray(D.src))D.src=[];
 if(D.recv&&D.info&&!D.src.length)D.src=[{id:'s0',file:D.info.file,tgl:D.info.tgl,rows:D.info.rows,unit:'M',recv:D.recv}];
 delete D.recv;delete D.info;
+const mig=()=>D.orders.forEach(o=>{if(o.closed){o.rows.forEach(r=>{if(!r.closed)r.closed=o.closed;});delete o.closed;}});mig();
+const oDone=o=>o.rows.length>0&&o.rows.every(r=>r.closed);
 const fmt=n=>Number(n).toLocaleString('id-ID',{maximumFractionDigits:1});
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 function msg(t,e){const m=$('#msg');m.textContent=t;m.className=e?'err':'';}
@@ -166,7 +169,7 @@ async function hasilExcel(f){
     if(s&&tglKey(nw.tgl)&&tglKey(nw.tgl)<tglKey(s.tgl)&&!confirm('File baru bertanggal '+nw.tgl+', lebih lama dari file yang diganti ('+s.tgl+'). Tetap dipakai?'))return 'Dibatalkan. Data tidak berubah.';
     D.src[i]=nw;
   }else if(m==='all')D.src=[nw];else D.src.push(nw);
-  const all=[].concat.apply([],D.orders.filter(o=>!o.closed).map(o=>o.rows.map(r=>r.code))),hit=all.filter(c=>D.src.some(s=>s.recv[c])).length;
+  const all=[].concat.apply([],D.orders.map(o=>o.rows.filter(r=>!r.closed).map(r=>r.code))),hit=all.filter(c=>D.src.some(s=>s.recv[c])).length;
   return {t:'Hasil '+(m==='add'?'ditambahkan':m==='rep'?'diganti':'semua diganti')+': '+fmt(nw.rows)+' baris, satuan '+uL(nw.unit)+'. '+hit+' dari '+all.length+' kode order yang masih berjalan ada di data hasil. '+unk('').length+' kode di file hasil belum punya Instruction Sheet.'+nw.note,w:!!nw.note};
 }
 const stat=r=>r.got===0?[0,'Belum ada']:r.got<r.qty*.9?[1,'Berjalan']:r.got<=r.qty*1.1?[2,'Cukup, dalam toleransi 10%']:[3,'Lebih dari toleransi'];
@@ -205,38 +208,38 @@ function buyerList(q){
   if(!items.length)return '<p class="note">Tidak ada buyer atau kode yang cocok.</p>';
   return items.map(b=>{
     const os=b.ix.map(i=>D.orders[i]),pr=os.map(prog),u=pr.every(p=>p.u0==='Y')?'Y':'M';
-    const tq=pr.reduce((a,p)=>a+conv(p.tq,p.u0,u),0),tg=pr.reduce((a,p)=>a+conv(p.tg,p.u0,u),0),p=tq?tg/tq*100:0,op=os.filter(o=>!o.closed).length;
+    const tq=pr.reduce((a,p)=>a+conv(p.tq,p.u0,u),0),tg=pr.reduce((a,p)=>a+conv(p.tg,p.u0,u),0),p=tq?tg/tq*100:0,op=os.filter(o=>!oDone(o)).length;
     return '<button class="by" data-buyer="'+esc(b.k)+'"><div class="oh"><b>'+esc(b.n)+'</b><span>'+fmt(p)+'%</span></div><div class="meta"><span>'+os.length+' order'+(op<os.length?', '+op+' berjalan, '+(os.length-op)+' close':'')+'</span><span>'+fmt(tg)+' dari '+fmt(tq)+' '+uS(u)+'</span></div><div class="pg"><i style="width:'+Math.min(100,p)+'%"></i></div></button>';
   }).join('');
 }
 /*/B*/
 function prog(o){
-  const u0=o.rows[0].u||'M',rs=o.rows.map(r=>{const u=r.u||'M',v=ambil(r.code,u);return {code:r.code,qty:r.qty,got:v.t,g:v.g,u:u};});
+  const u0=o.rows[0].u||'M',rs=o.rows.map((r,i)=>{const u=r.u||'M',v=ambil(r.code,u);return {code:r.code,qty:r.qty,got:v.t,g:v.g,u:u,i:i,cl:r.closed};});
   const tq=rs.reduce((a,r)=>a+conv(r.qty,r.u,u0),0),tg=rs.reduce((a,r)=>a+conv(r.got,r.u,u0),0);
   return {u0:u0,rs:rs,tq:tq,tg:tg,p:tq?tg/tq*100:0};
 }
 function card(o,oi,cnt,q,open){
   const P=prog(o),vis=q?P.rs.filter(r=>r.code.indexOf(q)>=0):P.rs;if(q&&!vis.length)return '';
   const body=vis.map(r=>{
-    const s=stat(r),pc=r.qty?r.got/r.qty*100:0,sx=r.u!==P.u0?' '+uS(r.u):'',gr=Object.keys(r.g).sort().map(k=>'Grade '+k+' '+fmt(r.g[k])).join(', ');
-    return '<tr><td>'+esc(r.code)+'<small>'+esc(gr)+'</small>'+(cnt[r.code]>1?'<small>Kode ini juga ada di order lain</small>':'')+'</td><td>'+fmt(r.qty)+sx+'</td><td>'+fmt(r.got)+sx+'</td><td>'+(r.got>r.qty?'lebih '+fmt(r.got-r.qty):fmt(r.qty-r.got))+sx+'</td><td>'+fmt(pc)+'%<br><span class="tg s'+s[0]+'">'+s[1]+'</span><div class="mini"><i style="width:'+Math.min(100,pc)+'%"></i></div></td></tr>';
+    const s=r.cl?(r.got>=r.qty*.9?[2,'Close']:[1,'Close, kurang '+fmt(r.qty-r.got)+' '+uS(r.u)]):stat(r),pc=r.qty?r.got/r.qty*100:0,sx=r.u!==P.u0?' '+uS(r.u):'',gr=Object.keys(r.g).sort().map(k=>'Grade '+k+' '+fmt(r.g[k])).join(', ');
+    return '<tr'+(r.cl?' class="cl"':'')+'><td>'+esc(r.code)+'<small>'+esc(gr)+'</small>'+(r.cl?'<small>Close '+esc(r.cl.split('-').reverse().join('-'))+'</small>':'')+(cnt[r.code]>1?'<small>Kode ini juga ada di order lain</small>':'')+'</td><td>'+fmt(r.qty)+sx+'</td><td>'+fmt(r.got)+sx+'</td><td>'+(r.got>r.qty?'lebih '+fmt(r.got-r.qty):fmt(r.qty-r.got))+sx+'</td><td>'+fmt(pc)+'%<br><span class="tg s'+s[0]+'">'+s[1]+'</span><div class="mini"><i style="width:'+Math.min(100,pc)+'%"></i></div><button class="btn rb" '+(r.cl?'data-ro':'data-rc')+'="'+oi+':'+r.i+'">'+(r.cl?'Buka kembali':'Tandai close')+'</button></td></tr>';
   }).join('');
   const meta=[['O.P',o.op||o.id],['Kontrak',o.contract],['Tujuan',o.dest],['Kirim',o.shipment]].filter(x=>x[1]).map(x=>'<span>'+x[0]+' '+esc(x[1])+'</span>').join('');
-  const bt=o.closed?'<button class="btn" data-reopen="'+oi+'">Buka kembali</button>':'<button class="btn p" data-close="'+oi+'">Tandai close</button>',u=uS(P.u0);
-  return '<details class="ord"'+(open||q?' open':'')+'><summary><div class="oh"><b>'+esc(bNama(o))+(o.closed?' <span class="tg s2">Close '+esc(o.closed.split('-').reverse().join('-'))+'</span>':'')+'</b><span>'+fmt(P.p)+'%</span></div><div class="meta"><span>'+fmt(P.tg)+' dari '+fmt(P.tq)+' '+u+'</span>'+meta+'</div><div class="pg"><i style="width:'+Math.min(100,P.p)+'%"></i></div></summary><div class="tx"><table><thead><tr><th>Kode</th><th>Order ('+u+')</th><th>Sudah ada ('+u+')</th><th>Sisa ('+u+')</th><th>Capaian</th></tr></thead><tbody>'+body+'</tbody></table></div><div class="ft"><span class="note">File '+esc(o.file||'')+'</span><span>'+bt+' <button class="btn" data-del="'+oi+'">Hapus</button></span></div></details>';
+  const u=uS(P.u0),nc=o.rows.filter(r=>r.closed).length;
+  return '<details class="ord" data-oi="'+oi+'"'+(open||q?' open':'')+'><summary><div class="oh"><b>'+esc(bNama(o))+(oDone(o)?' <span class="tg s2">Semua warna close</span>':'')+'</b><span>'+fmt(P.p)+'%</span></div><div class="meta"><span>'+fmt(P.tg)+' dari '+fmt(P.tq)+' '+u+'</span>'+(nc?'<span>'+nc+' dari '+o.rows.length+' warna close</span>':'')+meta+'</div><div class="pg"><i style="width:'+Math.min(100,P.p)+'%"></i></div></summary><div class="tx"><table><thead><tr><th>Kode</th><th>Order ('+u+')</th><th>Sudah ada ('+u+')</th><th>Sisa ('+u+')</th><th>Capaian</th></tr></thead><tbody>'+body+'</tbody></table></div><div class="ft"><span class="note">File '+esc(o.file||'')+'</span><span><button class="btn" data-del="'+oi+'">Hapus</button></span></div></details>';
 }
 function render(){
   const q=$('#cari').value.trim().toUpperCase(),cnt={};
   D.orders.forEach(o=>o.rows.forEach(r=>cnt[r.code]=(cnt[r.code]||0)+1));
   $('#src').innerHTML=D.src.length?'<p class="note">Sumber hasil, jumlahnya dijumlahkan:</p>'+D.src.map((s,i)=>'<div class="sr"><span>'+esc(s.file)+'<small>'+uL(s.unit)+', data per '+esc(s.tgl||'tanggal tidak terbaca')+', '+fmt(s.rows)+' baris</small></span><button class="btn" data-dsrc="'+i+'">Hapus</button></div>').join(''):'<p class="note">Belum ada file hasil. Unggah Excel untuk mengisi jumlah yang sudah didapat.</p>';
-  $('#orders').innerHTML=D.orders.length?'<p class="note">Order terdaftar:</p>'+D.orders.map(o=>'<div class="sr"><span>O.P '+esc(o.op||o.id)+(o.closed?' (close)':'')+'<small>'+o.rows.length+' kode, file '+esc(o.file||'')+'</small></span></div>').join(''):'<p class="note">Belum ada order. Tekan Tambah order (PDF) dan pilih Instruction Sheet.</p>';
+  $('#orders').innerHTML=D.orders.length?'<p class="note">Order terdaftar:</p>'+D.orders.map(o=>'<div class="sr"><span>O.P '+esc(o.op||o.id)+(oDone(o)?' (close)':'')+'<small>'+o.rows.length+' kode, file '+esc(o.file||'')+'</small></span></div>').join(''):'<p class="note">Belum ada order. Tekan Tambah order (PDF) dan pilih Instruction Sheet.</p>';
   $('#unklist').innerHTML=D.src.length?unkHtml(q):'<p class="note">Belum ada file hasil. Unggah Excel di menu Upload untuk melihat kode yang belum punya Instruction Sheet.</p>';
   const nu=D.src.length?unk('').length:0;$('#nbadge').innerHTML=nu?'<span class="bd">'+nu+'</span>':'';
   if(!D.orders.length){$('#list').innerHTML='<p class="note">Belum ada order. Tambahkan PDF Instruction Sheet di menu Upload.</p>';return;}
   if(buyer&&!D.orders.some(o=>bKey(o)===buyer))buyer=null;
   if(!buyer){$('#list').innerHTML=buyerList(q);return;}
   const act=[],dn=[];
-  D.orders.forEach((o,i)=>{if(bKey(o)!==buyer)return;const h=card(o,i,cnt,q,!o.closed&&!act.length);if(h)(o.closed?dn:act).push(h);});
+  D.orders.forEach((o,i)=>{if(bKey(o)!==buyer)return;const h=card(o,i,cnt,q,!oDone(o)&&!act.length);if(h)(oDone(o)?dn:act).push(h);});
   let html='<div class="back"><button class="btn" data-back="1">Kembali ke daftar buyer</button></div><h2 class="bn">'+esc(bNama(D.orders.find(o=>bKey(o)===buyer)))+'</h2>'+act.join('');
   if(!act.length)html+='<p class="note">'+(q&&!dn.length?'Tidak ada kode yang cocok.':q?'':'Semua order buyer ini sudah close.')+'</p>';
   if(dn.length)html+='<details class="done"'+(q?' open':'')+'><summary>Order close ('+dn.length+')</summary>'+dn.join('')+'</details>';
@@ -256,10 +259,13 @@ document.querySelector('.wrap').addEventListener('click',e=>{
   const by=e.target.closest('[data-buyer]');if(by){buyer=by.dataset.buyer;render();window.scrollTo(0,0);return;}
   if(e.target.closest('[data-back]')){buyer=null;render();window.scrollTo(0,0);return;}
   const g=a=>{const b=e.target.closest('['+a+']');return b?D.orders[+b.getAttribute(a)]:null;};
-  const d=g('data-del'),c=g('data-close'),r=g('data-reopen');
+  const d=g('data-del'),rc=e.target.closest('[data-rc]'),ro=e.target.closest('[data-ro]');
   if(d){if(confirm('Hapus order O.P '+(d.op||d.id)+'? File hasil tidak ikut terhapus.')){D.orders.splice(D.orders.indexOf(d),1);save();render();msg('Order dihapus.');}}
-  else if(c){const p=prog(c).p;if(p>=90||confirm('Order ini baru '+fmt(p)+'% dari jumlah order. Tetap tandai close?')){c.closed=new Date().toISOString().slice(0,10);save();render();msg('Order O.P '+(c.op||c.id)+' ditandai close.');}}
-  else if(r){delete r.closed;save();render();msg('Order O.P '+(r.op||r.id)+' dibuka kembali.');}
+  else if(rc||ro){const v=(rc||ro).dataset[rc?'rc':'ro'].split(':'),o=D.orders[+v[0]],r=o&&o.rows[+v[1]];
+    if(r){if(rc)r.closed=new Date().toISOString().slice(0,10);else delete r.closed;
+      const op=[].map.call(document.querySelectorAll('#list details.ord[open][data-oi]'),x=>x.dataset.oi);
+      save();render();op.forEach(k=>{const x=document.querySelector('#list details.ord[data-oi="'+k+'"]');if(x)x.open=true;});
+      msg('Warna '+r.code+(rc?' ditandai close.':' dibuka kembali.'));}}
 });
 $('#src').addEventListener('click',e=>{if(e.target.closest('[data-goto]')){const u=$('#unk');if(u){u.open=true;u.scrollIntoView({behavior:'smooth'});}return;}const b=e.target.closest('[data-dsrc]');if(!b)return;const s=D.src[+b.dataset.dsrc];
   if(s&&confirm('Hapus file hasil '+s.file+'? Jumlah dari file ini tidak lagi dihitung.')){D.src.splice(+b.dataset.dsrc,1);save();render();msg('File hasil dihapus.');}});
@@ -269,7 +275,7 @@ function impor(txt){
   if(!o||!Array.isArray(o.orders)){msg('Ini bukan cadangan Cek Order.',1);return;}
   o.orders.forEach(x=>{const i=D.orders.findIndex(y=>y.id===x.id);if(i>=0)D.orders[i]=x;else D.orders.push(x);});
   (o.src||(o.recv&&o.info?[{id:'s-'+o.info.file,file:o.info.file,tgl:o.info.tgl,rows:o.info.rows,unit:'M',recv:o.recv}]:[])).forEach(s=>{const i=D.src.findIndex(y=>y.id===s.id);if(i>=0)D.src[i]=s;else D.src.push(s);});
-  save();render();msg('Cadangan diimpor: '+o.orders.length+' order.');
+  mig();save();render();msg('Cadangan diimpor: '+o.orders.length+' order.');
 }
 document.querySelector('details.bk').addEventListener('click',e=>{
   const b=e.target.closest('[data-bk]');if(!b)return;const a=b.dataset.bk,t=$('#tbk');
