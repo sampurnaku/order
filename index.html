@@ -12,7 +12,7 @@
 @media(prefers-color-scheme:dark){:root{--bg:#151B20;--card:#1E262D;--ink:#E6ECF1;--mut:#9AA8B4;--line:#2E3A44;--acc:#8DB0E6;--on:#10202F;--ok:#6FD0A2;--okbg:#17372B;--wa:#E8B95A;--wabg:#3A2E12;--no:#9AA8B4;--nobg:#27323B;--hi:#F09BC0;--hibg:#40202F}}
 *{box-sizing:border-box}
 body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.45 system-ui,-apple-system,"Segoe UI",Roboto,sans-serif}
-.wrap{max-width:760px;margin:0 auto;padding:16px 14px 40px}
+.wrap{max-width:760px;margin:0 auto;padding:16px 14px 96px}
 h1{font-size:22px;margin:0 0 2px}.sub{color:var(--mut);margin:0}
 .bar{display:flex;gap:8px;flex-wrap:wrap;margin:14px 0 4px}
 .btn{font:inherit;min-height:44px;padding:0 14px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);cursor:pointer;display:inline-flex;align-items:center}
@@ -40,26 +40,40 @@ td small{display:block;color:var(--mut);font-size:12px}
 dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);color:var(--ink);width:min(92vw,460px);padding:16px}dialog::backdrop{background:rgba(0,0,0,.45)}dialog h2{font-size:18px;margin:0 0 6px}
 .op{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line);cursor:pointer}.op input{margin-top:3px;width:20px;height:20px;flex:none}.op small{display:block;color:var(--mut);font-size:13px}
 details.done{margin-top:18px}details.done>summary{cursor:pointer;font-weight:600;min-height:32px}
+.nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+.nav button{flex:1;min-height:56px;border:0;background:none;color:var(--mut);font:inherit;font-size:14px;cursor:pointer;padding:6px 4px}
+.nav button[aria-current=true]{color:var(--acc);font-weight:600;box-shadow:inset 0 3px 0 var(--acc)}
+.nav button:focus-visible{outline:2px solid var(--acc);outline-offset:-4px}
+.bd{display:inline-block;min-width:20px;padding:0 6px;margin-left:5px;border-radius:10px;background:var(--hibg);color:var(--hi);font-size:12px}
 details.bk{margin-top:28px}details.bk summary{cursor:pointer;font-weight:600;min-height:32px}
 </style></head><body><div class="wrap">
 <h1>Cek Order</h1>
-<p class="sub">PDF Instruction Sheet jadi order, Excel jadi jumlah yang sudah didapat.</p>
+<p class="sub">PDF Instruction Sheet (IS) jadi order, Excel jadi jumlah stock fresh yang sudah didapat.</p>
+<div id="msg" role="status"></div>
+<section id="p-up">
 <div class="bar">
 <label class="btn p">Tambah order (PDF)<input type="file" id="fpdf" accept="application/pdf,.pdf" multiple hidden></label>
 <label class="btn">Update hasil (Excel)<input type="file" id="fxls" accept=".xlsx,.xls" hidden></label>
 </div>
-<div id="src"></div><div id="msg" role="status"></div>
-<input type="search" id="cari" placeholder="Cari kode, misalnya LCKMJ13I" aria-label="Cari kode">
-<div id="list"></div><dialog id="dlg"></dialog>
+<div id="orders"></div>
+<div id="src"></div>
 <details class="bk"><summary>Cadangan data</summary>
 <p class="note">Simpan semua order dan hasil ke satu file untuk pindah HP atau sebagai pengaman. Saat impor, order dan file hasil dengan ID yang sama ditimpa, yang lain digabung.</p>
 <div class="bar"><button class="btn" data-bk="unduh">Unduh cadangan</button><button class="btn" data-bk="salin">Salin sebagai teks</button>
 <label class="btn">Pilih file cadangan<input type="file" id="fbk" accept=".json,application/json" hidden></label><button class="btn" data-bk="teks">Impor dari teks</button></div>
 <textarea id="tbk" spellcheck="false" placeholder="Teks cadangan muncul di sini. Untuk impor dari teks, tempel isi cadangan lalu tekan Impor dari teks."></textarea></details>
+</section>
+<div id="sch" hidden><input type="search" id="cari" placeholder="Cari kode, misalnya LCKMJ13I" aria-label="Cari kode"></div>
+<section id="p-unk" hidden><div id="unklist"></div></section>
+<section id="p-stk" hidden><div id="list"></div></section>
+<dialog id="dlg"></dialog>
 </div>
+<nav class="nav" aria-label="Menu"><button data-tab="up">Upload</button><button data-tab="unk">Belum ada IS<span id="nbadge"></span></button><button data-tab="stk">Data stock fresh</button></nav>
 <script>
 const KEY='pelacak-order-v1',PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',PDFW='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',XLS='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
 const $=s=>document.querySelector(s);
+function setTab(t){['up','unk','stk'].forEach(k=>{$('#p-'+k).hidden=k!==t;});$('#sch').hidden=t==='up';
+  document.querySelectorAll('.nav button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.tab===t)));window.scrollTo(0,0);}
 let D={orders:[],src:[]};
 try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.isArray(s.orders))D=Object.assign(D,s);}catch(e){}
 if(!Array.isArray(D.src))D.src=[];
@@ -155,7 +169,7 @@ async function hasilExcel(f){
 }
 const stat=r=>r.got===0?[0,'Belum ada']:r.got<r.qty*.9?[1,'Berjalan']:r.got<=r.qty*1.1?[2,'Cukup, dalam toleransi 10%']:[3,'Lebih dari toleransi'];
 /*U*/
-let lim=30;
+let lim=1e9;
 function unk(q){
   const known={},a={};D.orders.forEach(o=>o.rows.forEach(r=>known[r.code]=1));
   D.src.forEach(s=>Object.keys(s.recv).forEach(c=>{
@@ -169,13 +183,13 @@ function unk(q){
 function unkHtml(q){
   if(!D.src.length)return '';
   const l=unk(q);
-  if(!l.length)return q?'':'<p class="note">Semua kode di file hasil sudah punya Instruction Sheet.</p>';
+  if(!l.length)return '<p class="note">'+(q?'Tidak ada kode yang cocok.':'Semua kode di file hasil sudah punya Instruction Sheet.')+'</p>';
   const rows=l.slice(0,lim).map(x=>{
     const us=['M','Y'].filter(u=>x[u]>0),tot=us.map(u=>fmt(x[u])+' '+uS(u)).join(' + ');
     const gr=us.map(u=>Object.keys(x.g[u]).sort().map(k=>'Grade '+k+' '+fmt(x.g[u][k])+' '+uS(u)).join(', ')).join(', ');
     return '<tr><td>'+esc(x.c)+(x.m?'<small>Material '+esc(x.m)+'</small>':'')+'<small>'+esc(gr)+'</small></td><td>'+tot+'</td></tr>';
   }).join('');
-  return '<details class="ord" open><summary><div class="oh"><b>Belum ada Instruction Sheet</b><span>'+l.length+' kode</span></div><div class="meta"><span>Kode ini ada di file hasil Excel tapi belum ada di order mana pun. Unggah PDF-nya lewat Tambah order (PDF).</span></div></summary><div class="tx"><table><thead><tr><th>Kode</th><th>Hasil</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+(l.length>lim?'<div class="ft"><span class="note">Menampilkan '+lim+' dari '+l.length+' kode</span><button class="btn" data-more="1">Tampilkan semua</button></div>':'')+'</details>';
+  return '<details class="ord" id="unk" open><summary><div class="oh"><b>Belum ada Instruction Sheet</b><span>'+l.length+' kode</span></div><div class="meta"><span>Kode ini ada di file hasil Excel tapi belum ada di order mana pun. Unggah PDF-nya lewat Tambah order (PDF).</span></div></summary><div class="tx"><table><thead><tr><th>Kode</th><th>Hasil</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+'<div class="ft"><span class="note">Daftar mengikuti kolom cari</span><button class="btn" data-copyunk="1">Salin daftar kode</button></div>'+'</details>';
 }
 /*/U*/
 function prog(o){
@@ -197,11 +211,13 @@ function render(){
   const q=$('#cari').value.trim().toUpperCase(),cnt={};
   D.orders.forEach(o=>o.rows.forEach(r=>cnt[r.code]=(cnt[r.code]||0)+1));
   $('#src').innerHTML=D.src.length?'<p class="note">Sumber hasil, jumlahnya dijumlahkan:</p>'+D.src.map((s,i)=>'<div class="sr"><span>'+esc(s.file)+'<small>'+uL(s.unit)+', data per '+esc(s.tgl||'tanggal tidak terbaca')+', '+fmt(s.rows)+' baris</small></span><button class="btn" data-dsrc="'+i+'">Hapus</button></div>').join(''):'<p class="note">Belum ada file hasil. Unggah Excel untuk mengisi jumlah yang sudah didapat.</p>';
-  if(!D.orders.length){$('#list').innerHTML='<p class="note">Belum ada order. Tekan Tambah order (PDF) dan pilih Instruction Sheet.</p>'+unkHtml(q);return;}
+  $('#orders').innerHTML=D.orders.length?'<p class="note">Order terdaftar:</p>'+D.orders.map(o=>'<div class="sr"><span>O.P '+esc(o.op||o.id)+(o.closed?' (close)':'')+'<small>'+o.rows.length+' kode, file '+esc(o.file||'')+'</small></span></div>').join(''):'<p class="note">Belum ada order. Tekan Tambah order (PDF) dan pilih Instruction Sheet.</p>';
+  $('#unklist').innerHTML=D.src.length?unkHtml(q):'<p class="note">Belum ada file hasil. Unggah Excel di menu Upload untuk melihat kode yang belum punya Instruction Sheet.</p>';
+  const nu=D.src.length?unk('').length:0;$('#nbadge').innerHTML=nu?'<span class="bd">'+nu+'</span>':'';
+  if(!D.orders.length){$('#list').innerHTML='<p class="note">Belum ada order. Tambahkan PDF Instruction Sheet di menu Upload.</p>';return;}
   const act=[],dn=[];
   D.orders.forEach((o,i)=>{const h=card(o,i,cnt,q,!o.closed&&!act.length);if(h)(o.closed?dn:act).push(h);});
   let html=act.join('');if(!act.length&&!q)html='<p class="note">Semua order sudah close.</p>';
-  html+=unkHtml(q);
   if(dn.length)html+='<details class="done"'+(q?' open':'')+'><summary>Order close ('+dn.length+')</summary>'+dn.join('')+'</details>';
   $('#list').innerHTML=html||'<p class="note">Tidak ada kode yang cocok.</p>';
 }
@@ -209,16 +225,19 @@ async function jalan(fn){try{msg('Membaca file...');const r=await fn();save();re
 $('#fpdf').addEventListener('change',e=>{const fs=[].slice.call(e.target.files);e.target.value='';if(!fs.length)return;
   jalan(async()=>{const out=[];let w=false;for(const f of fs){const r=await tambahPdf(f);out.push(r.t);w=w||r.w;}return {t:out.join(' '),w:w};});});
 $('#fxls').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)jalan(()=>hasilExcel(f));});
-$('#cari').addEventListener('input',()=>{lim=30;render();});
-$('#list').addEventListener('click',e=>{
-  if(e.target.closest('[data-more]')){lim=1e9;render();return;}
+$('#cari').addEventListener('input',render);
+document.querySelector('.wrap').addEventListener('click',e=>{
+  if(e.target.closest('[data-copyunk]')){
+    const t=unk($('#cari').value.trim().toUpperCase()).map(x=>x.c+'\t'+['M','Y'].filter(u=>x[u]>0).map(u=>fmt(x[u])+' '+uS(u)).join(' + ')).join('\n');
+    const ok=()=>msg('Daftar kode disalin.'),alt=()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();let z=false;try{z=document.execCommand('copy');}catch(x){}a.remove();msg(z?'Daftar kode disalin.':'Gagal menyalin daftar kode.',!z);};
+    if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok,alt);else alt();return;}
   const g=a=>{const b=e.target.closest('['+a+']');return b?D.orders[+b.getAttribute(a)]:null;};
   const d=g('data-del'),c=g('data-close'),r=g('data-reopen');
   if(d){if(confirm('Hapus order O.P '+(d.op||d.id)+'? File hasil tidak ikut terhapus.')){D.orders.splice(D.orders.indexOf(d),1);save();render();msg('Order dihapus.');}}
   else if(c){const p=prog(c).p;if(p>=90||confirm('Order ini baru '+fmt(p)+'% dari jumlah order. Tetap tandai close?')){c.closed=new Date().toISOString().slice(0,10);save();render();msg('Order O.P '+(c.op||c.id)+' ditandai close.');}}
   else if(r){delete r.closed;save();render();msg('Order O.P '+(r.op||r.id)+' dibuka kembali.');}
 });
-$('#src').addEventListener('click',e=>{const b=e.target.closest('[data-dsrc]');if(!b)return;const s=D.src[+b.dataset.dsrc];
+$('#src').addEventListener('click',e=>{if(e.target.closest('[data-goto]')){const u=$('#unk');if(u){u.open=true;u.scrollIntoView({behavior:'smooth'});}return;}const b=e.target.closest('[data-dsrc]');if(!b)return;const s=D.src[+b.dataset.dsrc];
   if(s&&confirm('Hapus file hasil '+s.file+'? Jumlah dari file ini tidak lagi dihitung.')){D.src.splice(+b.dataset.dsrc,1);save();render();msg('File hasil dihapus.');}});
 const snap=()=>JSON.stringify(Object.assign({app:'pelacak-order',versi:1,dibuat:new Date().toISOString()},D),null,1);
 function impor(txt){
@@ -237,6 +256,7 @@ document.querySelector('details.bk').addEventListener('click',e=>{
 });
 $('#fbk').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const r=new FileReader();r.onload=()=>impor(String(r.result));r.readAsText(f);});
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
-render();
+render();setTab(D.orders.length||D.src.length?'stk':'up');
+document.querySelector('.nav').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b)setTab(b.dataset.tab);});
 if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
 </script></body></html>
