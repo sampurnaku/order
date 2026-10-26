@@ -49,17 +49,21 @@ details.done{margin-top:18px}details.done>summary{cursor:pointer;font-weight:600
 .by:focus-visible{outline:2px solid var(--acc);outline-offset:2px}.bn{font-size:18px;margin:12px 0 0}.back{margin-top:6px}
 details.bk{margin-top:28px}details.bk summary{cursor:pointer;font-weight:600;min-height:32px}
 tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-top:6px}
+.seg{display:flex;margin:14px 0 0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}.seg button{flex:1;min-height:44px;border:0;background:none;color:var(--mut);font:inherit;cursor:pointer;padding:0 8px}.seg button+button{border-left:1px solid var(--line)}.seg button[aria-current=true]{background:var(--acc);color:var(--on);font-weight:600}.seg button:focus-visible{outline:2px solid var(--acc);outline-offset:-4px}
 </style></head><body><div class="wrap">
 <h1>Cek Order</h1>
 <p class="sub">PDF Instruction Sheet (IS) jadi order, Excel jadi jumlah stock fresh yang sudah didapat.</p>
 <div id="msg" role="status"></div>
 <section id="p-up">
-<div class="bar">
-<label class="btn p">Tambah order (PDF)<input type="file" id="fpdf" accept="application/pdf,.pdf" multiple hidden></label>
-<label class="btn">Update hasil (Excel)<input type="file" id="fxls" accept=".xlsx,.xls" hidden></label>
-</div>
+<div class="seg" role="group" aria-label="Jenis upload"><button data-sub="pdf">Order (PDF)<span id="cpdf"></span></button><button data-sub="xls">Update hasil<span id="cxls"></span></button></div>
+<div id="u-pdf">
+<div class="bar"><label class="btn p">Tambah order (PDF)<input type="file" id="fpdf" accept="application/pdf,.pdf" multiple hidden></label></div>
 <div id="orders"></div>
+</div>
+<div id="u-xls" hidden>
+<div class="bar"><label class="btn p">Update hasil (Excel)<input type="file" id="fxls" accept=".xlsx,.xls" hidden></label></div>
 <div id="src"></div>
+</div>
 <details class="bk"><summary>Cadangan data</summary>
 <p class="note">Simpan semua order dan hasil ke satu file untuk pindah HP atau sebagai pengaman. Saat impor, order dan file hasil dengan ID yang sama ditimpa, yang lain digabung.</p>
 <div class="bar"><button class="btn" data-bk="unduh">Unduh cadangan</button><button class="btn" data-bk="salin">Salin sebagai teks</button>
@@ -77,6 +81,7 @@ const KEY='pelacak-order-v1',PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.j
 const $=s=>document.querySelector(s);
 function setTab(t){['up','unk','stk'].forEach(k=>{$('#p-'+k).hidden=k!==t;});$('#sch').hidden=t==='up';$('#cari').placeholder=t==='stk'?'Cari buyer atau kode':'Cari kode, misalnya LCKMJ13I';if($('#cari').value){$('#cari').value='';render();}
   document.querySelectorAll('.nav button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.tab===t)));window.scrollTo(0,0);}
+function setSub(k){$('#u-pdf').hidden=k!=='pdf';$('#u-xls').hidden=k!=='xls';document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.sub===k)));}
 let D={orders:[],src:[]};
 try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.isArray(s.orders))D=Object.assign(D,s);}catch(e){}
 if(!Array.isArray(D.src))D.src=[];
@@ -229,6 +234,7 @@ function card(o,oi,cnt,q,open){
   return '<details class="ord" data-oi="'+oi+'"'+(open||q?' open':'')+'><summary><div class="oh"><b>'+esc(bNama(o))+(oDone(o)?' <span class="tg s2">Semua warna close</span>':'')+'</b><span>'+fmt(P.p)+'%</span></div><div class="meta"><span>'+fmt(P.tg)+' dari '+fmt(P.tq)+' '+u+'</span>'+(nc?'<span>'+nc+' dari '+o.rows.length+' warna close</span>':'')+meta+'</div><div class="pg"><i style="width:'+Math.min(100,P.p)+'%"></i></div></summary><div class="tx"><table><thead><tr><th>Kode</th><th>Order ('+u+')</th><th>Sudah ada ('+u+')</th><th>Sisa ('+u+')</th><th>Capaian</th></tr></thead><tbody>'+body+'</tbody></table></div><div class="ft"><span class="note">File '+esc(o.file||'')+'</span><span><button class="btn" data-del="'+oi+'">Hapus</button></span></div></details>';
 }
 function render(){
+  $('#cpdf').textContent=D.orders.length?' ('+D.orders.length+')':'';$('#cxls').textContent=D.src.length?' ('+D.src.length+')':'';
   const q=$('#cari').value.trim().toUpperCase(),cnt={};
   D.orders.forEach(o=>o.rows.forEach(r=>cnt[r.code]=(cnt[r.code]||0)+1));
   $('#src').innerHTML=D.src.length?'<p class="note">Sumber hasil, jumlahnya dijumlahkan:</p>'+D.src.map((s,i)=>'<div class="sr"><span>'+esc(s.file)+'<small>'+uL(s.unit)+', data per '+esc(s.tgl||'tanggal tidak terbaca')+', '+fmt(s.rows)+' baris</small></span><button class="btn" data-dsrc="'+i+'">Hapus</button></div>').join(''):'<p class="note">Belum ada file hasil. Unggah Excel untuk mengisi jumlah yang sudah didapat.</p>';
@@ -286,7 +292,8 @@ document.querySelector('details.bk').addEventListener('click',e=>{
 });
 $('#fbk').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(!f)return;const r=new FileReader();r.onload=()=>impor(String(r.result));r.readAsText(f);});
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
-render();setTab(D.orders.length||D.src.length?'stk':'up');
+render();setSub('pdf');setTab(D.orders.length||D.src.length?'stk':'up');
+document.querySelector('.seg').addEventListener('click',e=>{const b=e.target.closest('[data-sub]');if(b)setSub(b.dataset.sub);});
 document.querySelector('.nav').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b)setTab(b.dataset.tab);});
 if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
 </script></body></html>
