@@ -157,14 +157,35 @@ function urai(txt){
 /*/P*/
 const lib={};
 const muat=(u,ok)=>lib[u]||(lib[u]=new Promise((res,rej)=>{if(ok())return res();const s=document.createElement('script');s.src=u;s.onload=res;s.onerror=()=>{delete lib[u];rej(new Error('Gagal memuat pustaka pembaca file. Periksa koneksi internet lalu coba lagi.'));};document.head.appendChild(s);}));
+/*D*/
+function desKolom(it){
+  const T=s=>String(s).trim(),out=[];
+  it.filter(i=>T(i.s)==='CODE').forEach(c=>{
+    const dz=it.find(i=>T(i.s)==='DESIGN'&&Math.abs(i.y-c.y)<4);if(!dz)return;
+    const cC=c.x+c.w/2,cD=dz.x+dz.w/2,tot=it.find(i=>i.y<c.y&&i.x<cD&&/^T\s?O\s?T\s?A\s?L\b/.test(T(i.s))),yE=tot?tot.y:-1e9;
+    const body=it.filter(i=>i.y<c.y-2&&i.y>yE&&T(i.s));
+    const rw=body.filter(i=>i.x<cC&&/^[A-Z][A-Z0-9.]*\d[A-Z0-9]*\s*\//.test(T(i.s))).sort((a,b)=>b.y-a.y);
+    const ds=body.filter(i=>i.x>cC&&i.x<=cD);
+    rw.forEach((r,k)=>{
+      const lo=k+1<rw.length?rw[k+1].y:yE;
+      const ln=ds.filter(i=>i.y<=r.y+3&&i.y>lo+2).sort((a,b)=>b.y-a.y||a.x-b.x),keep=[];
+      if(ln.length&&Math.abs(ln[0].y-r.y)<=3){let py=ln[0].y;for(const i of ln){if(py-i.y>16)break;keep.push(i);py=i.y;}}
+      out.push({code:T(r.s).match(/^[^\s\/]+/)[0],dg:keep.map(i=>T(i.s)).join(' ').replace(/\s+/g,' ').trim()});
+    });
+  });
+  return out;
+}
+/*/D*/
 async function teksPdf(f){
   await muat(PDFJS,()=>window.pdfjsLib);pdfjsLib.GlobalWorkerOptions.workerSrc=PDFW;
-  const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;let t='';
-  for(let p=1;p<=pdf.numPages;p++){const c=await(await pdf.getPage(p)).getTextContent();t+=c.items.map(i=>i.str).join(' ')+' ';}
-  return t;
+  const pdf=await pdfjsLib.getDocument({data:await f.arrayBuffer()}).promise;let t='',des=[];
+  for(let p=1;p<=pdf.numPages;p++){const c=await(await pdf.getPage(p)).getTextContent();t+=c.items.map(i=>i.str).join(' ')+' ';
+    try{des=des.concat(desKolom(c.items.map(i=>({s:i.str,x:i.transform[4],y:i.transform[5],w:i.width||0}))));}catch(e){}}
+  return {t:t,des:des};
 }
 async function tambahPdf(f){
-  const u=urai(await teksPdf(f));
+  const pr=await teksPdf(f),u=urai(pr.t),dus={};
+  u.rows.forEach(r=>{const k=pr.des.findIndex((d,j)=>!dus[j]&&d.code===r.code);if(k>=0){dus[k]=1;if(pr.des[k].dg)r.dg=pr.des[k].dg;}});
   if(!u.rows.length)throw new Error(f.name+': tidak ada kode order yang terbaca. Pastikan ini PDF Instruction Sheet.');
   const id=u.op||f.name,i=D.orders.findIndex(o=>o.id===id||(u.isNo&&o.isNo===u.isNo));
   const o={id:id,op:u.op,buyer:u.buyer,contract:u.contract,dest:u.dest,shipment:u.shipment,isNo:u.isNo,gab:u.gab,file:f.name,rows:u.rows};
@@ -251,10 +272,11 @@ const dasar=os=>{const b=[];os.forEach(o=>o.rows.forEach(r=>{const m=String(r.co
 const kdTxt=(os,mx)=>{const b=dasar(os);return b.length?'<span class="kd">'+esc(b.slice(0,mx).join(', ')+(b.length>mx?' +'+(b.length-mx):''))+'</span>':'';};
 const bKey=o=>String(o.buyer||'').trim().toUpperCase()||'(BUYER TIDAK TERBACA)';
 const bNama=o=>String(o.buyer||'').trim()||'Buyer tidak terbaca';
+const dsg=r=>String(r.dg||'').trim();
 function buyerList(q){
   const g={};
   D.orders.forEach((o,i)=>{const k=bKey(o);(g[k]||(g[k]={k:k,n:bNama(o),ix:[]})).ix.push(i);});
-  const items=Object.keys(g).sort().map(k=>g[k]).filter(b=>!q||b.n.toUpperCase().indexOf(q)>=0||b.ix.some(i=>D.orders[i].rows.some(r=>r.code.indexOf(q)>=0)));
+  const items=Object.keys(g).sort().map(k=>g[k]).filter(b=>!q||b.n.toUpperCase().indexOf(q)>=0||b.ix.some(i=>D.orders[i].rows.some(r=>r.code.indexOf(q)>=0||dsg(r).toUpperCase().indexOf(q)>=0)));
   if(!items.length)return '<p class="note">Tidak ada buyer atau kode yang cocok.</p>';
   return items.map(b=>{
     const os=b.ix.map(i=>D.orders[i]),pr=os.map(prog),u=pr.every(p=>p.u0==='Y')?'Y':'M';
@@ -264,18 +286,18 @@ function buyerList(q){
 }
 /*/B*/
 function prog(o){
-  const u0=o.rows[0].u||'M',rs=o.rows.map((r,i)=>{const u=r.u||'M',v=ambil(r.code,u);return {code:r.code,qty:r.qty,got:v.t,g:v.g,p:v.p,k:v.k,u:u,i:i,cl:r.closed};});
+  const u0=o.rows[0].u||'M',rs=o.rows.map((r,i)=>{const u=r.u||'M',v=ambil(r.code,u);return {code:r.code,qty:r.qty,got:v.t,g:v.g,p:v.p,k:v.k,u:u,i:i,cl:r.closed,dg:r.dg};});
   const tq=rs.reduce((a,r)=>a+conv(r.qty,r.u,u0),0),tg=rs.reduce((a,r)=>a+conv(r.got,r.u,u0),0);
   return {u0:u0,rs:rs,tq:tq,tg:tg,p:tq?tg/tq*100:0};
 }
 function card(o,oi,cnt,q,open){
-  const P=prog(o),vis=q?P.rs.filter(r=>r.code.indexOf(q)>=0):P.rs;if(q&&!vis.length)return '';
+  const P=prog(o),ds=o.rows.map(dsg).filter((x,i,a)=>x&&a.indexOf(x)===i),dm=q&&ds.some(x=>x.toUpperCase().indexOf(q)>=0),vis=q&&!dm?P.rs.filter(r=>r.code.indexOf(q)>=0):P.rs;if(q&&!vis.length)return '';
   const body=vis.map(r=>{
     const s=r.cl?(r.got>=r.qty*.9?[2,'Close']:[1,'Close, kurang '+fmt(r.qty-r.got)+' '+uS(r.u)]):stat(r),pc=r.qty?r.got/r.qty*100:0,sx=r.u!==P.u0?' '+uS(r.u):'',gr=Object.keys(r.g).sort().map(k=>'Grade '+k+' '+fmt(r.g[k])).join(', ');
     const hk=r.k&&(r.k.L||r.k.R),rs=hk?' rowspan="2"':'',kt=hk?'<tr'+(r.cl?' class="cl"':'')+'><td colspan="4" class="k2"><span class="ck">Sudah cek (L) '+fmt(r.k.L)+'</span> &nbsp; <span class="cr">Belum cek (R) '+fmt(r.k.R)+'</span>'+(r.k.X?' &nbsp; Tanpa status '+fmt(r.k.X):'')+'</td></tr>':'';
-    return '<tr'+(r.cl?' class="cl"':'')+'><td'+rs+'>'+esc(r.code)+'<small>'+esc(gr)+'</small>'+(r.cl?'<small>Close '+esc(r.cl.split('-').reverse().join('-'))+'</small>':'')+(cnt[r.code]>1?'<small>Kode ini juga ada di order lain</small>':'')+'</td><td>'+fmt(r.qty)+sx+'</td><td>'+fmt(r.got)+sx+'</td><td>'+(r.p>0?fmt(r.p):'-')+'</td><td'+(r.got<r.qty*.9?' class="kr"':'')+'>'+(r.got>r.qty?'lebih '+fmt(r.got-r.qty):fmt(r.qty-r.got))+sx+'</td><td'+rs+'>'+fmt(pc)+'%<br><span class="tg s'+s[0]+'">'+s[1]+'</span><div class="mini"><i style="width:'+Math.min(100,pc)+'%"></i></div><button class="btn rb" '+(r.cl?'data-ro':'data-rc')+'="'+oi+':'+r.i+'">'+(r.cl?'Buka kembali':'Tandai close')+'</button></td></tr>'+kt;
+    return '<tr'+(r.cl?' class="cl"':'')+'><td'+rs+'>'+esc(r.code)+(ds.length>1&&dsg(r)?'<small>Design '+esc(dsg(r))+'</small>':'')+'<small>'+esc(gr)+'</small>'+(r.cl?'<small>Close '+esc(r.cl.split('-').reverse().join('-'))+'</small>':'')+(cnt[r.code]>1?'<small>Kode ini juga ada di order lain</small>':'')+'</td><td>'+fmt(r.qty)+sx+'</td><td>'+fmt(r.got)+sx+'</td><td>'+(r.p>0?fmt(r.p):'-')+'</td><td'+(r.got<r.qty*.9?' class="kr"':'')+'>'+(r.got>r.qty?'lebih '+fmt(r.got-r.qty):fmt(r.qty-r.got))+sx+'</td><td'+rs+'>'+fmt(pc)+'%<br><span class="tg s'+s[0]+'">'+s[1]+'</span><div class="mini"><i style="width:'+Math.min(100,pc)+'%"></i></div><button class="btn rb" '+(r.cl?'data-ro':'data-rc')+'="'+oi+':'+r.i+'">'+(r.cl?'Buka kembali':'Tandai close')+'</button></td></tr>'+kt;
   }).join('');
-  const meta=[['O.P',o.op||o.id],['Kontrak',o.contract],['Tujuan',o.dest],['Kirim',o.shipment]].filter(x=>x[1]).map(x=>'<span>'+x[0]+' '+esc(x[1])+'</span>').join('');
+  const meta=[['Design',ds.join(', ')],['O.P',o.op||o.id],['Kontrak',o.contract],['Tujuan',o.dest],['Kirim',o.shipment]].filter(x=>x[1]).map(x=>'<span>'+x[0]+' '+esc(x[1])+'</span>').join('');
   const u=uS(P.u0),nc=o.rows.filter(r=>r.closed).length,kR=P.rs.reduce((a,r)=>a+(r.k?conv(r.k.R,r.u,P.u0):0),0);
   const gb=(o.gab||[]).map(g=>'<div class="gb"><span class="tg s1">Kirim gabung</span> '+esc(g.ket)+'</div>').join('');
   const MT='<div class="meta"><span>'+fmt(P.tg)+' dari '+fmt(P.tq)+' '+u+'</span>'+(nc?'<span>'+nc+' dari '+o.rows.length+' warna close</span>':'')+(kR>0?'<span class="cr">Belum cek (R) '+fmt(kR)+' '+u+'</span>':'')+meta+'</div>'+gb+'';
