@@ -54,6 +54,7 @@ tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-to
 .ck{color:var(--ok)}.cr{color:var(--wa);font-weight:600}
 .kr{color:var(--hi);font-weight:600}
 .k2{text-align:right!important;border-top:0;padding-top:0;font-size:13px}tr.cl td.k2{opacity:.6}
+.kd{font-size:13px;font-weight:600;color:var(--mut);margin-left:8px;white-space:normal}
 </style></head><body><div class="wrap">
 <h1>Cek Order</h1>
 <p class="sub">PDF Instruction Sheet (IS) jadi order, Excel jadi jumlah stock fresh yang sudah didapat.</p>
@@ -218,6 +219,8 @@ function unkHtml(q){
 /*/U*/
 /*B*/
 let buyer=null;
+const dasar=os=>{const b=[];os.forEach(o=>o.rows.forEach(r=>{const m=String(r.code).match(/^[A-Z]+/);if(m&&b.indexOf(m[0])<0)b.push(m[0]);}));return b.filter(x=>!b.some(y=>y!==x&&x.indexOf(y)===0)).sort();};
+const kdTxt=(os,mx)=>{const b=dasar(os);return b.length?'<span class="kd">'+esc(b.slice(0,mx).join(', ')+(b.length>mx?' +'+(b.length-mx):''))+'</span>':'';};
 const bKey=o=>String(o.buyer||'').trim().toUpperCase()||'(BUYER TIDAK TERBACA)';
 const bNama=o=>String(o.buyer||'').trim()||'Buyer tidak terbaca';
 function buyerList(q){
@@ -228,7 +231,7 @@ function buyerList(q){
   return items.map(b=>{
     const os=b.ix.map(i=>D.orders[i]),pr=os.map(prog),u=pr.every(p=>p.u0==='Y')?'Y':'M';
     const tq=pr.reduce((a,p)=>a+conv(p.tq,p.u0,u),0),tg=pr.reduce((a,p)=>a+conv(p.tg,p.u0,u),0),p=tq?tg/tq*100:0,op=os.filter(o=>!oDone(o)).length;
-    return '<button class="by" data-buyer="'+esc(b.k)+'"><div class="oh"><b>'+esc(b.n)+'</b><span>'+fmt(p)+'%</span></div><div class="meta"><span>'+os.length+' order'+(op<os.length?', '+op+' berjalan, '+(os.length-op)+' close':'')+'</span><span>'+fmt(tg)+' dari '+fmt(tq)+' '+uS(u)+'</span></div><div class="pg"><i style="width:'+Math.min(100,p)+'%"></i></div></button>';
+    return '<button class="by" data-buyer="'+esc(b.k)+'"><div class="oh"><b>'+esc(b.n)+kdTxt(os,4)+'</b><span>'+fmt(p)+'%</span></div><div class="meta"><span>'+os.length+' order'+(op<os.length?', '+op+' berjalan, '+(os.length-op)+' close':'')+'</span><span>'+fmt(tg)+' dari '+fmt(tq)+' '+uS(u)+'</span></div><div class="pg"><i style="width:'+Math.min(100,p)+'%"></i></div></button>';
   }).join('');
 }
 /*/B*/
@@ -247,7 +250,7 @@ function card(o,oi,cnt,q,open){
   const meta=[['O.P',o.op||o.id],['Kontrak',o.contract],['Tujuan',o.dest],['Kirim',o.shipment]].filter(x=>x[1]).map(x=>'<span>'+x[0]+' '+esc(x[1])+'</span>').join('');
   const u=uS(P.u0),nc=o.rows.filter(r=>r.closed).length,kR=P.rs.reduce((a,r)=>a+(r.k?conv(r.k.R,r.u,P.u0):0),0);
   const gb=(o.gab||[]).map(g=>'<div class="gb"><span class="tg s1">Kirim gabung</span> '+esc(g.ket)+'</div>').join('');
-  return '<details class="ord" data-oi="'+oi+'"'+(open||q?' open':'')+'><summary><div class="oh"><b>'+esc(bNama(o))+(oDone(o)?' <span class="tg s2">Semua warna close</span>':'')+'</b><span>'+fmt(P.p)+'%</span></div><div class="meta"><span>'+fmt(P.tg)+' dari '+fmt(P.tq)+' '+u+'</span>'+(nc?'<span>'+nc+' dari '+o.rows.length+' warna close</span>':'')+(kR>0?'<span class="cr">Belum cek (R) '+fmt(kR)+' '+u+'</span>':'')+meta+'</div>'+gb+'<div class="pg"><i style="width:'+Math.min(100,P.p)+'%"></i></div></summary><div class="tx"><table><thead><tr><th>Kode</th><th>Order ('+u+')</th><th>Sudah ada ('+u+')</th><th>Pcs</th><th>Sisa ('+u+')</th><th>Capaian</th></tr></thead><tbody>'+body+'</tbody></table></div><div class="ft"><span class="note">File '+esc(o.file||'')+'</span><span><button class="btn" data-del="'+oi+'">Hapus</button></span></div></details>';
+  return '<details class="ord" data-oi="'+oi+'"'+(open||q?' open':'')+'><summary><div class="oh"><b>'+esc(bNama(o))+kdTxt([o],3)+(oDone(o)?' <span class="tg s2">Semua warna close</span>':'')+'</b><span>'+fmt(P.p)+'%</span></div><div class="meta"><span>'+fmt(P.tg)+' dari '+fmt(P.tq)+' '+u+'</span>'+(nc?'<span>'+nc+' dari '+o.rows.length+' warna close</span>':'')+(kR>0?'<span class="cr">Belum cek (R) '+fmt(kR)+' '+u+'</span>':'')+meta+'</div>'+gb+'<div class="pg"><i style="width:'+Math.min(100,P.p)+'%"></i></div></summary><div class="tx"><table><thead><tr><th>Kode</th><th>Order ('+u+')</th><th>Sudah ada ('+u+')</th><th>Pcs</th><th>Sisa ('+u+')</th><th>Capaian</th></tr></thead><tbody>'+body+'</tbody></table></div><div class="ft"><span class="note">File '+esc(o.file||'')+'</span><span><button class="btn" data-del="'+oi+'">Hapus</button></span></div></details>';
 }
 function render(){
   $('#cpdf').textContent=D.orders.length?' ('+D.orders.length+')':'';$('#cxls').textContent=D.src.length?' ('+D.src.length+')':'';
