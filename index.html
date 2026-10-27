@@ -108,8 +108,8 @@ function urai(txt){
   const meta={op:g(/O\.P\s*:\s*(\S+)/),buyer:g(/BUYER\s*:\s*(.+?)\s+CONTRACT NO/),contract:g(/CONTRACT NO\.?\s*:\s*(\S+)/),dest:g(/DESTINATION\s*:\s*(.+?)\s+INDENT NO/),shipment:g(/SHIPMENT\s*:\s*(\d{2}\/\d{2}\/\d{4})/),isNo:g(/DIBUAT OLEH\s+\S+\s+FOLLOW UP\s*:\s*\S+\s+(\d{4,8})/)};
   const tm=t.match(/T\s?O\s?T\s?A\s?L\s+(\d+)\s+([\d.,]+)/);
   const body=tm?t.slice(0,tm.index):t;
-  const re=/(KODE\s+|R\/O\s+)?\b((?:[A-Z]{2,}[A-Z0-9]*\d[A-Z0-9]*)|(?:LC[A-Z]{2,}))(?:\.?\s+[A-Z][A-Z]*(?:\s+[A-Z][A-Z]*)*)?\s*\/\s*(\d{4,6})\s*-/g,hits=[];let m,cols=0;
-  while((m=re.exec(body)))if(!m[1])hits.push({code:m[2],mat:m[3],s:m.index,i:m.index+m[0].length});
+  const re=/(KODE\s+|R\/O\s+)?\b((?:[A-Z]{2,}[A-Z0-9]*\d[A-Z0-9]*|LC[A-Z]{2,})(?:\.?\s+[A-Z][A-Z]*(?:\s+[A-Z][A-Z]*)*)?)\s*\/\s*(\d{4,6})\s*-/g,hits=[];let m,cols=0;
+  while((m=re.exec(body)))if(!m[1])hits.push({code:m[2].replace(/\s+/g,' ').trim(),mat:m[3],s:m.index,i:m.index+m[0].length});
   const rows=[];
   hits.forEach((h,k)=>{
     const seg=body.slice(h.i,k+1<hits.length?hits[k+1].s:body.length);
@@ -134,9 +134,9 @@ async function teksPdf(f){
 async function tambahPdf(f){
   const u=urai(await teksPdf(f));
   if(!u.rows.length)throw new Error(f.name+': tidak ada kode order yang terbaca. Pastikan ini PDF Instruction Sheet.');
-  const id=u.op||f.name,i=D.orders.findIndex(o=>o.id===id);
+  const id=u.op||f.name,i=D.orders.findIndex(o=>o.id===id||(u.isNo&&o.isNo===u.isNo));
   const o={id:id,op:u.op,buyer:u.buyer,contract:u.contract,dest:u.dest,shipment:u.shipment,isNo:u.isNo,gab:u.gab,file:f.name,rows:u.rows};
-  if(i>=0)D.orders[i]=o;else D.orders.push(o);
+  if(i>=0){const used={};o.rows.forEach(r=>{const k=D.orders[i].rows.findIndex((x,j)=>x.code===r.code&&x.closed&&!used[j]);if(k>=0){used[k]=1;r.closed=D.orders[i].rows[k].closed;}});D.orders[i]=o;}else D.orders.push(o);
   const q=u.rows.reduce((a,r)=>a+r.qty,0);let w='';
   if(u.tot&&(u.tot.q!==q||u.tot.n!==u.cols))w=' Peringatan: total di PDF '+u.tot.n+' warna, '+fmt(u.tot.q)+', hasil baca '+u.cols+' warna, '+fmt(q)+'. Periksa tabelnya.';
   const gt=u.gab.length?' Ada kirim gabung.':'';
@@ -153,7 +153,7 @@ async function bacaExcel(f){
   const hi=rows.findIndex(r=>r.indexOf('Kd. Order')>=0&&r.indexOf('Qty')>=0);
   if(hi<0)throw new Error('Kolom "Kd. Order" dan "Qty" tidak ditemukan. Pastikan ini file Detail Barang By Jenis Proses.');
   const h=rows[hi],ci=h.indexOf('Kd. Order'),qi=h.indexOf('Qty'),gi=h.indexOf('Grade'),bi=h.indexOf('Bun'),mi=h.indexOf('Material'),data=[];
-  rows.slice(hi+1).forEach(r=>{const c=String(r[ci]==null?'':r[ci]).trim().toUpperCase(),q=num(r[qi]);if(c&&q)data.push({c:c,q:q,g:String(r[gi]==null?'-':r[gi]).trim()||'-',u:bi>=0?normU(r[bi]):'',m:mi>=0&&r[mi]!=null?String(r[mi]).trim():''});});
+  rows.slice(hi+1).forEach(r=>{const c=String(r[ci]==null?'':r[ci]).replace(/\s+/g,' ').trim().toUpperCase(),q=num(r[qi]);if(c&&q)data.push({c:c,q:q,g:String(r[gi]==null?'-':r[gi]).trim()||'-',u:bi>=0?normU(r[bi]):'',m:mi>=0&&r[mi]!=null?String(r[mi]).trim():''});});
   const cu={M:0,Y:0},recv={};data.forEach(d=>{if(d.u)cu[d.u]++;});
   const unit=cu.Y>cu.M?'Y':'M';
   data.forEach(d=>{const q=conv(d.q,d.u||unit,unit),x=recv[d.c]||(recv[d.c]={t:0,g:{}});x.t+=q;x.g[d.g]=(x.g[d.g]||0)+q;if(d.m&&!x.m)x.m=d.m;});
