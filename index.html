@@ -53,6 +53,7 @@ tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-to
 .gb{font-size:13px;margin-top:6px;color:var(--mut)}
 .ck{color:var(--ok)}.cr{color:var(--wa);font-weight:600}
 .kr{color:var(--hi);font-weight:600}
+.k2{text-align:right!important;border-top:0;padding-top:0;font-size:13px}tr.cl td.k2{opacity:.6}
 </style></head><body><div class="wrap">
 <h1>Cek Order</h1>
 <p class="sub">PDF Instruction Sheet (IS) jadi order, Excel jadi jumlah stock fresh yang sudah didapat.</p>
@@ -68,7 +69,7 @@ tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-to
 <div id="src"></div>
 </div>
 <details class="bk"><summary>Cadangan data</summary>
-<p class="note">Simpan semua order dan hasil ke satu file untuk pindah HP atau sebagai pengaman. Saat impor, order dan file hasil dengan ID yang sama ditimpa, yang lain digabung.</p>
+<p class="note">Simpan semua order dan hasil ke satu file untuk pindah HP atau sebagai pengaman. Saat impor, semua data di aplikasi ini diganti dengan isi cadangan, tidak ditambahkan.</p>
 <div class="bar"><button class="btn" data-bk="unduh">Unduh cadangan</button><button class="btn" data-bk="salin">Salin sebagai teks</button>
 <label class="btn">Pilih file cadangan<input type="file" id="fbk" accept=".json,application/json" hidden></label><button class="btn" data-bk="teks">Impor dari teks</button></div>
 <textarea id="tbk" spellcheck="false" placeholder="Teks cadangan muncul di sini. Untuk impor dari teks, tempel isi cadangan lalu tekan Impor dari teks."></textarea></details>
@@ -240,7 +241,8 @@ function card(o,oi,cnt,q,open){
   const P=prog(o),vis=q?P.rs.filter(r=>r.code.indexOf(q)>=0):P.rs;if(q&&!vis.length)return '';
   const body=vis.map(r=>{
     const s=r.cl?(r.got>=r.qty*.9?[2,'Close']:[1,'Close, kurang '+fmt(r.qty-r.got)+' '+uS(r.u)]):stat(r),pc=r.qty?r.got/r.qty*100:0,sx=r.u!==P.u0?' '+uS(r.u):'',gr=Object.keys(r.g).sort().map(k=>'Grade '+k+' '+fmt(r.g[k])).join(', ');
-    return '<tr'+(r.cl?' class="cl"':'')+'><td>'+esc(r.code)+'<small>'+esc(gr)+'</small>'+(r.cl?'<small>Close '+esc(r.cl.split('-').reverse().join('-'))+'</small>':'')+(r.k&&(r.k.L||r.k.R)?'<small><span class="ck">Sudah cek (L) '+fmt(r.k.L)+'</span> <span class="cr">Belum cek (R) '+fmt(r.k.R)+'</span>'+(r.k.X?' Tanpa status '+fmt(r.k.X):'')+'</small>':'')+(cnt[r.code]>1?'<small>Kode ini juga ada di order lain</small>':'')+'</td><td>'+fmt(r.qty)+sx+'</td><td>'+fmt(r.got)+sx+'</td><td>'+(r.p>0?fmt(r.p):'-')+'</td><td'+(r.got<r.qty*.9?' class="kr"':'')+'>'+(r.got>r.qty?'lebih '+fmt(r.got-r.qty):fmt(r.qty-r.got))+sx+'</td><td>'+fmt(pc)+'%<br><span class="tg s'+s[0]+'">'+s[1]+'</span><div class="mini"><i style="width:'+Math.min(100,pc)+'%"></i></div><button class="btn rb" '+(r.cl?'data-ro':'data-rc')+'="'+oi+':'+r.i+'">'+(r.cl?'Buka kembali':'Tandai close')+'</button></td></tr>';
+    const hk=r.k&&(r.k.L||r.k.R),rs=hk?' rowspan="2"':'',kt=hk?'<tr'+(r.cl?' class="cl"':'')+'><td colspan="4" class="k2"><span class="ck">Sudah cek (L) '+fmt(r.k.L)+'</span> &nbsp; <span class="cr">Belum cek (R) '+fmt(r.k.R)+'</span>'+(r.k.X?' &nbsp; Tanpa status '+fmt(r.k.X):'')+'</td></tr>':'';
+    return '<tr'+(r.cl?' class="cl"':'')+'><td'+rs+'>'+esc(r.code)+'<small>'+esc(gr)+'</small>'+(r.cl?'<small>Close '+esc(r.cl.split('-').reverse().join('-'))+'</small>':'')+(cnt[r.code]>1?'<small>Kode ini juga ada di order lain</small>':'')+'</td><td>'+fmt(r.qty)+sx+'</td><td>'+fmt(r.got)+sx+'</td><td>'+(r.p>0?fmt(r.p):'-')+'</td><td'+(r.got<r.qty*.9?' class="kr"':'')+'>'+(r.got>r.qty?'lebih '+fmt(r.got-r.qty):fmt(r.qty-r.got))+sx+'</td><td'+rs+'>'+fmt(pc)+'%<br><span class="tg s'+s[0]+'">'+s[1]+'</span><div class="mini"><i style="width:'+Math.min(100,pc)+'%"></i></div><button class="btn rb" '+(r.cl?'data-ro':'data-rc')+'="'+oi+':'+r.i+'">'+(r.cl?'Buka kembali':'Tandai close')+'</button></td></tr>'+kt;
   }).join('');
   const meta=[['O.P',o.op||o.id],['Kontrak',o.contract],['Tujuan',o.dest],['Kirim',o.shipment]].filter(x=>x[1]).map(x=>'<span>'+x[0]+' '+esc(x[1])+'</span>').join('');
   const u=uS(P.u0),nc=o.rows.filter(r=>r.closed).length,kR=P.rs.reduce((a,r)=>a+(r.k?conv(r.k.R,r.u,P.u0):0),0);
@@ -294,8 +296,9 @@ const snap=()=>JSON.stringify(Object.assign({app:'pelacak-order',versi:1,dibuat:
 function impor(txt){
   let o;try{o=JSON.parse(txt);}catch(e){msg('Isi tidak valid. Pastikan seluruh teks cadangan tertempel.',1);return;}
   if(!o||!Array.isArray(o.orders)){msg('Ini bukan cadangan Cek Order.',1);return;}
-  o.orders.forEach(x=>{const i=D.orders.findIndex(y=>y.id===x.id);if(i>=0)D.orders[i]=x;else D.orders.push(x);});
-  (o.src||(o.recv&&o.info?[{id:'s-'+o.info.file,file:o.info.file,tgl:o.info.tgl,rows:o.info.rows,unit:'M',recv:o.recv}]:[])).forEach(s=>{const i=D.src.findIndex(y=>y.id===s.id);if(i>=0)D.src[i]=s;else D.src.push(s);});
+  const sr=o.src||(o.recv&&o.info?[{id:'s-'+o.info.file,file:o.info.file,tgl:o.info.tgl,rows:o.info.rows,unit:'M',recv:o.recv}]:[]);
+  if((D.orders.length||D.src.length)&&!confirm('Ganti semua data di aplikasi ini ('+D.orders.length+' order, '+D.src.length+' file hasil) dengan isi cadangan ('+o.orders.length+' order, '+sr.length+' file hasil)?')){msg('Dibatalkan. Data tidak berubah.');return;}
+  D.orders=o.orders;D.src=sr;
   mig();save();render();msg('Cadangan diimpor: '+o.orders.length+' order.');
 }
 document.querySelector('details.bk').addEventListener('click',e=>{
