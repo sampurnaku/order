@@ -23,7 +23,7 @@ h1{font-size:22px;margin:0 0 2px;padding-bottom:8px;border-bottom:2px solid var(
 input[type=search],textarea{width:100%;padding:8px 12px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit}
 input[type=search]{min-height:44px;margin-top:10px}
 textarea{min-height:100px;margin-top:10px;font-size:12px}
-.ord{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:14px 0;overflow:hidden;box-shadow:0 1px 3px rgba(60,50,45,.08)}
+.ord{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:14px 0;overflow:hidden;overflow:clip;box-shadow:0 1px 3px rgba(60,50,45,.08)}
 .ord>summary{list-style:none;cursor:pointer;padding:12px 14px}.ord>summary::-webkit-details-marker{display:none}
 .oh{display:flex;justify-content:space-between;gap:10px;align-items:baseline}.oh b{font-size:17px}
 .meta{color:var(--mut);font-size:13px;margin-top:2px}.meta span{margin-right:14px}
@@ -48,8 +48,12 @@ details.done{margin-top:18px}details.done>summary{cursor:pointer;font-weight:600
 .by{display:block;width:100%;text-align:left;font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:10px 0;cursor:pointer}
 .by:focus-visible{outline:2px solid var(--acc);outline-offset:2px}.bn{font-size:18px;margin:12px 0 0}.back{margin-top:6px}
 /* judul detail buyer tetap di atas saat halaman digulir */
-.dh{position:sticky;top:env(safe-area-inset-top,0px);z-index:4;display:flex;align-items:center;gap:10px;margin:6px -14px 0;padding:8px 14px;background:var(--bg);border-bottom:1px solid var(--line)}
+.dh{display:flex;align-items:center;gap:10px;margin:6px 0 0;padding:8px 0}
 .dh .btn{flex:none;min-height:40px}.dh .bn{margin:0;font-size:16px;line-height:1.25;flex:1;min-width:0;overflow-wrap:anywhere}
+/* judul order yang dibuka tetap di atas saat digulir; keterangan lengkap pindah ke dalam isi kartu */
+.ord[open][data-oi]>summary{position:sticky;top:env(safe-area-inset-top,0px);z-index:3;background:var(--card);border-bottom:1px solid var(--line)}
+.ord[open][data-oi]>summary .sm{display:none}
+.bm{padding:8px 14px 10px;border-bottom:1px solid var(--line)}.bm .meta{margin-top:0}
 details.bk{margin-top:28px}details.bk summary{cursor:pointer;font-weight:600;min-height:32px}
 tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-top:6px}
 .seg{display:flex;margin:14px 0 0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}.seg button{flex:1;min-height:44px;border:0;background:none;color:var(--mut);font:inherit;cursor:pointer;padding:0 8px}.seg button+button{border-left:1px solid var(--line)}.seg button[aria-current=true]{background:var(--acc);color:var(--on);font-weight:600}.seg button:focus-visible{outline:2px solid var(--acc);outline-offset:-4px}
@@ -253,7 +257,8 @@ function card(o,oi,cnt,q,open){
   const meta=[['O.P',o.op||o.id],['Kontrak',o.contract],['Tujuan',o.dest],['Kirim',o.shipment]].filter(x=>x[1]).map(x=>'<span>'+x[0]+' '+esc(x[1])+'</span>').join('');
   const u=uS(P.u0),nc=o.rows.filter(r=>r.closed).length,kR=P.rs.reduce((a,r)=>a+(r.k?conv(r.k.R,r.u,P.u0):0),0);
   const gb=(o.gab||[]).map(g=>'<div class="gb"><span class="tg s1">Kirim gabung</span> '+esc(g.ket)+'</div>').join('');
-  return '<details class="ord" data-oi="'+oi+'"'+(open||q?' open':'')+'><summary><div class="oh"><b>'+esc(bNama(o))+kdTxt([o],3)+(oDone(o)?' <span class="tg s2">Semua warna close</span>':'')+'</b><span>'+fmt(P.p)+'%</span></div><div class="meta"><span>'+fmt(P.tg)+' dari '+fmt(P.tq)+' '+u+'</span>'+(nc?'<span>'+nc+' dari '+o.rows.length+' warna close</span>':'')+(kR>0?'<span class="cr">Belum cek (R) '+fmt(kR)+' '+u+'</span>':'')+meta+'</div>'+gb+'<div class="pg"><i style="width:'+Math.min(100,P.p)+'%"></i></div></summary><div class="tx"><table><thead><tr><th>Kode</th><th>Order ('+u+')</th><th>Sudah ada ('+u+')</th><th>Pcs</th><th>Sisa ('+u+')</th><th>Capaian</th></tr></thead><tbody>'+body+'</tbody></table></div><div class="ft"><span class="note">File '+esc(o.file||'')+'</span><span><button class="btn" data-del="'+oi+'">Hapus</button></span></div></details>';
+  const MT='<div class="meta"><span>'+fmt(P.tg)+' dari '+fmt(P.tq)+' '+u+'</span>'+(nc?'<span>'+nc+' dari '+o.rows.length+' warna close</span>':'')+(kR>0?'<span class="cr">Belum cek (R) '+fmt(kR)+' '+u+'</span>':'')+meta+'</div>'+gb+'';
+  return '<details class="ord" data-oi="'+oi+'"'+(open||q?' open':'')+'><summary><div class="oh"><b>'+esc(bNama(o))+kdTxt([o],3)+(oDone(o)?' <span class="tg s2">Semua warna close</span>':'')+'</b><span>'+fmt(P.p)+'%</span></div><div class="sm">'+MT+'</div><div class="pg"><i style="width:'+Math.min(100,P.p)+'%"></i></div></summary><div class="bm">'+MT+'</div><div class="tx"><table><thead><tr><th>Kode</th><th>Order ('+u+')</th><th>Sudah ada ('+u+')</th><th>Pcs</th><th>Sisa ('+u+')</th><th>Capaian</th></tr></thead><tbody>'+body+'</tbody></table></div><div class="ft"><span class="note">File '+esc(o.file||'')+'</span><span><button class="btn" data-del="'+oi+'">Hapus</button></span></div></details>';
 }
 function render(){
   $('#cpdf').textContent=D.orders.length?' ('+D.orders.length+')':'';$('#cxls').textContent=D.src.length?' ('+D.src.length+')':'';
@@ -268,7 +273,7 @@ function render(){
   if(buyer&&!D.orders.some(o=>bKey(o)===buyer))buyer=null;
   if(!buyer){$('#list').innerHTML=buyerList(q);return;}
   const act=[],dn=[];
-  D.orders.forEach((o,i)=>{if(bKey(o)!==buyer)return;const h=card(o,i,cnt,q,!oDone(o)&&!act.length);if(h)(oDone(o)?dn:act).push(h);});
+  D.orders.forEach((o,i)=>{if(bKey(o)!==buyer)return;const h=card(o,i,cnt,q,false);if(h)(oDone(o)?dn:act).push(h);});
   let html='<div class="dh"><button class="btn" data-back="1" aria-label="Kembali ke daftar buyer">Daftar buyer</button><h2 class="bn">'+esc(bNama(D.orders.find(o=>bKey(o)===buyer)))+'</h2></div>'+act.join('');
   if(!act.length)html+='<p class="note">'+(q&&!dn.length?'Tidak ada kode yang cocok.':q?'':'Semua order buyer ini sudah close.')+'</p>';
   if(dn.length)html+='<details class="done"'+(q?' open':'')+'><summary>Order close ('+dn.length+')</summary>'+dn.join('')+'</details>';
@@ -318,6 +323,6 @@ $('#fbk').addEventListener('change',e=>{const f=e.target.files[0];e.target.value
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
 render();setSub('pdf');setTab(D.orders.length||D.src.length?'stk':'up');
 document.querySelector('.seg').addEventListener('click',e=>{const b=e.target.closest('[data-sub]');if(b)setSub(b.dataset.sub);});
-document.querySelector('.nav').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b)setTab(b.dataset.tab);});
+document.querySelector('.nav').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){if(b.dataset.tab==='stk'&&b.getAttribute('aria-current')==='true'&&buyer){buyer=null;render();}setTab(b.dataset.tab);}});
 if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
 </script></body></html>
