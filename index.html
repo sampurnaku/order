@@ -54,6 +54,16 @@ details.done{margin-top:18px}details.done>summary{cursor:pointer;font-weight:600
 .ord[open][data-oi]>summary{position:sticky;top:env(safe-area-inset-top,0px);z-index:3;background:var(--card);border-bottom:1px solid var(--line)}
 .ord[open][data-oi]>summary .sm{display:none}
 .bm{padding:8px 14px 10px;border-bottom:1px solid var(--line)}.bm .meta{margin-top:0}
+/* judul kolom tabel menempel tepat di bawah judul kartu; tabel dipadatkan supaya semua kolom muat tanpa geser ke samping */
+.ord[data-oi] .tx{overflow:visible;overflow-x:clip}
+.ord[data-oi] th{position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--sh,90px));z-index:2;background:var(--card);box-shadow:0 1px 0 var(--line)}
+.ord[data-oi] table{font-size:13px}.ord[data-oi] th{font-size:11px}.ord[data-oi] .tg{font-size:11px;padding:1px 6px}
+.ord[data-oi] th,.ord[data-oi] td{padding:8px 3px}
+.ord[data-oi] th:first-child,.ord[data-oi] td:first-child{padding-left:10px}
+.ord[data-oi] th:last-child,.ord[data-oi] td:last-child{padding-right:10px}
+.ord[data-oi] .rb{white-space:normal;line-height:1.15;padding:4px;min-height:36px;font-size:12px}
+@media(max-width:400px){.wrap{padding-left:10px;padding-right:10px}}
+.ord[data-oi] .tx.ov{overflow-x:auto}
 details.bk{margin-top:28px}details.bk summary{cursor:pointer;font-weight:600;min-height:32px}
 tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-top:6px}
 .seg{display:flex;margin:14px 0 0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}.seg button{flex:1;min-height:44px;border:0;background:none;color:var(--mut);font:inherit;cursor:pointer;padding:0 8px}.seg button+button{border-left:1px solid var(--line)}.seg button[aria-current=true]{background:var(--acc);color:var(--on);font-weight:600}.seg button:focus-visible{outline:2px solid var(--acc);outline-offset:-4px}
@@ -91,6 +101,11 @@ tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-to
 <script>
 const KEY='pelacak-order-v1',PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',PDFW='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',XLS='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
 const $=s=>document.querySelector(s);
+function setSh(){
+  document.querySelectorAll('#list .tx').forEach(x=>{x.classList.remove('ov');if(x.scrollWidth>x.clientWidth+1)x.classList.add('ov');});
+  document.querySelectorAll('#list details.ord[open][data-oi]').forEach(d=>{const s=d.querySelector('summary');if(s)d.style.setProperty('--sh',s.offsetHeight+'px');});
+}
+document.addEventListener('toggle',setSh,true);window.addEventListener('resize',setSh);window.addEventListener('load',setSh);
 function setTab(t){['up','unk','stk'].forEach(k=>{$('#p-'+k).hidden=k!==t;});$('#sch').hidden=t==='up';$('#cari').placeholder=t==='stk'?'Cari buyer atau kode':'Cari kode, misalnya LCKMJ13I';if($('#cari').value){$('#cari').value='';render();}
   document.querySelectorAll('.nav button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.tab===t)));window.scrollTo(0,0);}
 function setSub(k){$('#u-pdf').hidden=k!=='pdf';$('#u-xls').hidden=k!=='xls';document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.sub===k)));}
@@ -277,7 +292,7 @@ function render(){
   let html='<div class="dh"><button class="btn" data-back="1" aria-label="Kembali ke daftar buyer">Daftar buyer</button><h2 class="bn">'+esc(bNama(D.orders.find(o=>bKey(o)===buyer)))+'</h2></div>'+act.join('');
   if(!act.length)html+='<p class="note">'+(q&&!dn.length?'Tidak ada kode yang cocok.':q?'':'Semua order buyer ini sudah close.')+'</p>';
   if(dn.length)html+='<details class="done"'+(q?' open':'')+'><summary>Order close ('+dn.length+')</summary>'+dn.join('')+'</details>';
-  $('#list').innerHTML=html;
+  $('#list').innerHTML=html;setSh();
 }
 
 async function jalan(fn){try{msg('Membaca file...');const r=await fn();save();render();msg(r.t||r,r.w);}catch(e){msg(e.message||'Gagal membaca file.',1);}}
