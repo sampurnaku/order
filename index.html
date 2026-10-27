@@ -52,11 +52,17 @@ details.done{margin-top:18px}details.done>summary{cursor:pointer;font-weight:600
 .dh .btn{flex:none;min-height:40px}.dh .bn{margin:0;font-size:16px;line-height:1.25;flex:1;min-width:0;overflow-wrap:anywhere}
 /* judul order yang dibuka tetap di atas saat digulir; keterangan lengkap pindah ke dalam isi kartu */
 .ord[open][data-oi]>summary{position:sticky;top:env(safe-area-inset-top,0px);z-index:3;background:var(--card);border-bottom:1px solid var(--line)}
-.ord[open][data-oi]>summary .sm{display:none}
+/* saat dibuka, keterangan order (O.P, kontrak, tujuan, kirim, jumlah) ikut menempel; dipadatkan agar tidak terlalu tinggi */
+.ord[open][data-oi]>summary{padding:8px 12px}
+.ord[open][data-oi]>summary .oh b{font-size:15px}
+.ord[open][data-oi]>summary .meta{font-size:12px;margin-top:2px;line-height:1.35}
+.ord[open][data-oi]>summary .meta span{margin-right:10px}
+.ord[open][data-oi]>summary .gb{font-size:12px;margin-top:3px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.ord[open][data-oi]>summary .pg{height:6px;margin-top:6px}
 .bm{padding:8px 14px 10px;border-bottom:1px solid var(--line)}.bm .meta{margin-top:0}
 /* judul kolom tabel menempel tepat di bawah judul kartu; tabel dipadatkan supaya semua kolom muat tanpa geser ke samping */
 .ord[data-oi] .tx{overflow:visible;overflow-x:clip}
-.ord[data-oi] th{position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--sh,90px));z-index:2;background:var(--card);box-shadow:0 1px 0 var(--line)}
+.ord[data-oi] th{position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--sh,90px) - 1px);z-index:2;background:var(--card);box-shadow:0 1px 0 var(--line)}
 .ord[data-oi] table{font-size:13px}.ord[data-oi] th{font-size:11px}.ord[data-oi] .tg{font-size:11px;padding:1px 6px}
 .ord[data-oi] th,.ord[data-oi] td{padding:8px 3px}
 .ord[data-oi] th:first-child,.ord[data-oi] td:first-child{padding-left:10px}
@@ -273,7 +279,7 @@ function card(o,oi,cnt,q,open){
   const u=uS(P.u0),nc=o.rows.filter(r=>r.closed).length,kR=P.rs.reduce((a,r)=>a+(r.k?conv(r.k.R,r.u,P.u0):0),0);
   const gb=(o.gab||[]).map(g=>'<div class="gb"><span class="tg s1">Kirim gabung</span> '+esc(g.ket)+'</div>').join('');
   const MT='<div class="meta"><span>'+fmt(P.tg)+' dari '+fmt(P.tq)+' '+u+'</span>'+(nc?'<span>'+nc+' dari '+o.rows.length+' warna close</span>':'')+(kR>0?'<span class="cr">Belum cek (R) '+fmt(kR)+' '+u+'</span>':'')+meta+'</div>'+gb+'';
-  return '<details class="ord" data-oi="'+oi+'"'+(open||q?' open':'')+'><summary><div class="oh"><b>'+esc(bNama(o))+kdTxt([o],3)+(oDone(o)?' <span class="tg s2">Semua warna close</span>':'')+'</b><span>'+fmt(P.p)+'%</span></div><div class="sm">'+MT+'</div><div class="pg"><i style="width:'+Math.min(100,P.p)+'%"></i></div></summary><div class="bm">'+MT+'</div><div class="tx"><table><thead><tr><th>Kode</th><th>Order ('+u+')</th><th>Sudah ada ('+u+')</th><th>Pcs</th><th>Sisa ('+u+')</th><th>Capaian</th></tr></thead><tbody>'+body+'</tbody></table></div><div class="ft"><span class="note">File '+esc(o.file||'')+'</span><span><button class="btn" data-del="'+oi+'">Hapus</button></span></div></details>';
+  return '<details class="ord" data-oi="'+oi+'"'+(open||q?' open':'')+'><summary><div class="oh"><b>'+esc(bNama(o))+kdTxt([o],3)+(oDone(o)?' <span class="tg s2">Semua warna close</span>':'')+'</b><span>'+fmt(P.p)+'%</span></div><div class="sm">'+MT+'</div><div class="pg"><i style="width:'+Math.min(100,P.p)+'%"></i></div></summary>'+(gb?'<div class="bm">'+gb+'</div>':'')+'<div class="tx"><table><thead><tr><th>Kode</th><th>Order ('+u+')</th><th>Sudah ada ('+u+')</th><th>Pcs</th><th>Sisa ('+u+')</th><th>Capaian</th></tr></thead><tbody>'+body+'</tbody></table></div><div class="ft"><span class="note">File '+esc(o.file||'')+'</span><span><button class="btn" data-del="'+oi+'">Hapus</button></span></div></details>';
 }
 function render(){
   $('#cpdf').textContent=D.orders.length?' ('+D.orders.length+')':'';$('#cxls').textContent=D.src.length?' ('+D.src.length+')':'';
