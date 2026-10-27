@@ -164,13 +164,15 @@ function desKolom(it){
     const dz=it.find(i=>T(i.s)==='DESIGN'&&Math.abs(i.y-c.y)<4);if(!dz)return;
     const cC=c.x+c.w/2,cD=dz.x+dz.w/2,tot=it.find(i=>i.y<c.y&&i.x<cD&&/^T\s?O\s?T\s?A\s?L\b/.test(T(i.s))),yE=tot?tot.y:-1e9;
     const body=it.filter(i=>i.y<c.y-2&&i.y>yE&&T(i.s));
-    const rw=body.filter(i=>i.x<cC&&/^[A-Z][A-Z0-9.]*\d[A-Z0-9]*\s*\//.test(T(i.s))).sort((a,b)=>b.y-a.y);
+    /* awal tiap baris = baris teks yang memuat jumlah (MTR/YARD) atau kode berformat KODE / DESIGN */
+    const ys=body.filter(i=>/^[\d.,]+\s*(MTR|YARDS?|YDS?)\b/i.test(T(i.s))||(i.x<cC&&/^[A-Z][A-Z0-9.]*\d[A-Z0-9]*\s*\//.test(T(i.s)))).map(i=>i.y).sort((a,b)=>b-a),rw=[];
+    ys.forEach(y=>{if(!rw.length||rw[rw.length-1]-y>3)rw.push(y);});
     const ds=body.filter(i=>i.x>cC&&i.x<=cD);
-    rw.forEach((r,k)=>{
-      const lo=k+1<rw.length?rw[k+1].y:yE;
-      const ln=ds.filter(i=>i.y<=r.y+3&&i.y>lo+2).sort((a,b)=>b.y-a.y||a.x-b.x),keep=[];
-      if(ln.length&&Math.abs(ln[0].y-r.y)<=3){let py=ln[0].y;for(const i of ln){if(py-i.y>16)break;keep.push(i);py=i.y;}}
-      out.push({code:T(r.s).match(/^[^\s\/]+/)[0],dg:keep.map(i=>T(i.s)).join(' ').replace(/\s+/g,' ').trim()});
+    rw.forEach((y,k)=>{
+      const cd=body.filter(i=>i.x<cC&&Math.abs(i.y-y)<=3).sort((a,b)=>a.x-b.x).map(i=>T(i.s)).join(' ');if(!cd)return;
+      const lo=k+1<rw.length?rw[k+1]:yE,ln=ds.filter(i=>i.y<=y+3&&i.y>lo+2).sort((a,b)=>b.y-a.y||a.x-b.x),keep=[];
+      if(ln.length&&Math.abs(ln[0].y-y)<=3){let py=ln[0].y;for(const i of ln){if(py-i.y>16)break;keep.push(i);py=i.y;}}
+      out.push({code:cd.split('/')[0].trim(),dg:keep.map(i=>T(i.s)).join(' ').replace(/\s+/g,' ').trim()});
     });
   });
   return out;
@@ -185,7 +187,8 @@ async function teksPdf(f){
 }
 async function tambahPdf(f){
   const pr=await teksPdf(f),u=urai(pr.t),dus={};
-  u.rows.forEach(r=>{const k=pr.des.findIndex((d,j)=>!dus[j]&&d.code===r.code);if(k>=0){dus[k]=1;if(pr.des[k].dg)r.dg=pr.des[k].dg;}});
+  const nk=s=>String(s).replace(/[\s.]/g,'').toUpperCase();
+  u.rows.forEach(r=>{const k=pr.des.findIndex((d,j)=>!dus[j]&&nk(d.code)===nk(r.code));if(k>=0){dus[k]=1;if(pr.des[k].dg)r.dg=pr.des[k].dg;}});
   if(!u.rows.length)throw new Error(f.name+': tidak ada kode order yang terbaca. Pastikan ini PDF Instruction Sheet.');
   const id=u.op||f.name,i=D.orders.findIndex(o=>o.id===id||(u.isNo&&o.isNo===u.isNo));
   const o={id:id,op:u.op,buyer:u.buyer,contract:u.contract,dest:u.dest,shipment:u.shipment,isNo:u.isNo,gab:u.gab,file:f.name,rows:u.rows};
