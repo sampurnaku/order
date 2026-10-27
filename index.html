@@ -52,6 +52,7 @@ tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-to
 .seg{display:flex;margin:14px 0 0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}.seg button{flex:1;min-height:44px;border:0;background:none;color:var(--mut);font:inherit;cursor:pointer;padding:0 8px}.seg button+button{border-left:1px solid var(--line)}.seg button[aria-current=true]{background:var(--acc);color:var(--on);font-weight:600}.seg button:focus-visible{outline:2px solid var(--acc);outline-offset:-4px}
 .gb{font-size:13px;margin-top:6px;color:var(--mut)}
 .ck{color:var(--ok)}.cr{color:var(--wa);font-weight:600}
+.kr{color:var(--hi);font-weight:600}
 </style></head><body><div class="wrap">
 <h1>Cek Order</h1>
 <p class="sub">PDF Instruction Sheet (IS) jadi order, Excel jadi jumlah stock fresh yang sudah didapat.</p>
@@ -146,18 +147,18 @@ async function tambahPdf(f){
 const YD=0.9144,uL=u=>u==='Y'?'yard':'meter',uS=u=>u==='Y'?'yd':'m';
 const normU=v=>{const u=String(v==null?'':v).trim().toUpperCase();return /^(Y|YD|YDS|YARD|YARDS)$/.test(u)?'Y':/^(M|MTR|METER|METERS)$/.test(u)?'M':'';};
 const conv=(x,a,b)=>a===b?x:(a==='Y'?x*YD:x/YD);
-function ambil(code,u){const r={t:0,g:{}};D.src.forEach(s=>{const v=s.recv[code];if(!v)return;r.t+=conv(v.t,s.unit,u);Object.keys(v.g).forEach(k=>r.g[k]=(r.g[k]||0)+conv(v.g[k],s.unit,u));if(v.k){r.k=r.k||{L:0,R:0,X:0};['L','R','X'].forEach(z=>r.k[z]+=conv(v.k[z]||0,s.unit,u));}});return r;}
+function ambil(code,u){const r={t:0,g:{},p:0};D.src.forEach(s=>{const v=s.recv[code];if(!v)return;r.p+=v.p||0;r.t+=conv(v.t,s.unit,u);Object.keys(v.g).forEach(k=>r.g[k]=(r.g[k]||0)+conv(v.g[k],s.unit,u));if(v.k){r.k=r.k||{L:0,R:0,X:0};['L','R','X'].forEach(z=>r.k[z]+=conv(v.k[z]||0,s.unit,u));}});return r;}
 async function bacaExcel(f){
   await muat(XLS,()=>window.XLSX);
   const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
-  const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:null});
-  const hi=rows.findIndex(r=>r.indexOf('Kd. Order')>=0&&r.indexOf('Qty')>=0);
+  let rows=[],hi=-1;
+  for(const n of wb.SheetNames){rows=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null});hi=rows.findIndex(r=>r.indexOf('Kd. Order')>=0&&r.indexOf('Qty')>=0);if(hi>=0)break;}
   if(hi<0)throw new Error('Kolom "Kd. Order" dan "Qty" tidak ditemukan. Pastikan ini file Detail Barang By Jenis Proses.');
-  const h=rows[hi],ci=h.indexOf('Kd. Order'),qi=h.indexOf('Qty'),gi=h.indexOf('Grade'),bi=h.indexOf('Bun'),mi=h.indexOf('Material'),ki=h.findIndex(x=>/^doc\.?\s*ref+\.?$/i.test(String(x==null?'':x).trim())),data=[];
-  rows.slice(hi+1).forEach(r=>{const c=String(r[ci]==null?'':r[ci]).replace(/\s+/g,' ').trim().toUpperCase(),q=num(r[qi]);if(c&&q)data.push({c:c,q:q,g:String(r[gi]==null?'-':r[gi]).trim()||'-',u:bi>=0?normU(r[bi]):'',m:mi>=0&&r[mi]!=null?String(r[mi]).trim():'',k:ki>=0?(({L:'L',R:'R'})[String(r[ki]==null?'':r[ki]).trim().toUpperCase().charAt(0)]||'X'):''});});
+  const h=rows[hi],ci=h.indexOf('Kd. Order'),qi=h.indexOf('Qty'),gi=h.indexOf('Grade'),bi=h.indexOf('Bun'),mi=h.indexOf('Material'),pi=h.indexOf('Pcs'),ki=h.findIndex(x=>/^doc\.?\s*ref+\.?$/i.test(String(x==null?'':x).trim())),data=[];
+  rows.slice(hi+1).forEach(r=>{const c=String(r[ci]==null?'':r[ci]).replace(/\s+/g,' ').trim().toUpperCase(),q=num(r[qi]);if(c&&q)data.push({c:c,q:q,g:String(r[gi]==null?'-':r[gi]).trim()||'-',u:bi>=0?normU(r[bi]):'',m:mi>=0&&r[mi]!=null?String(r[mi]).trim():'',p:pi>=0?num(r[pi]):0,k:ki>=0?(({L:'L',R:'R'})[String(r[ki]==null?'':r[ki]).trim().toUpperCase().charAt(0)]||'X'):''});});
   const cu={M:0,Y:0},recv={};data.forEach(d=>{if(d.u)cu[d.u]++;});
   const unit=cu.Y>cu.M?'Y':'M';
-  data.forEach(d=>{const q=conv(d.q,d.u||unit,unit),x=recv[d.c]||(recv[d.c]={t:0,g:{}});x.t+=q;x.g[d.g]=(x.g[d.g]||0)+q;if(d.m&&!x.m)x.m=d.m;if(d.k){x.k=x.k||{L:0,R:0,X:0};x.k[d.k]+=q;}});
+  data.forEach(d=>{const q=conv(d.q,d.u||unit,unit),x=recv[d.c]||(recv[d.c]={t:0,g:{}});x.t+=q;x.g[d.g]=(x.g[d.g]||0)+q;if(d.m&&!x.m)x.m=d.m;x.p=(x.p||0)+d.p;if(d.k){x.k=x.k||{L:0,R:0,X:0};x.k[d.k]+=q;}});
   const dm=String((rows[0]||[])[0]||'').match(/\((\d{2}-\d{2}-\d{4})\)/);
   return {id:'s'+Date.now().toString(36),file:f.name,tgl:dm?dm[1]:'',rows:data.length,unit:unit,recv:recv,
     note:(ki<0?' Kolom "Doc Reff" tidak ditemukan, status sudah cek / belum cek tidak terisi.':'')+(!cu.M&&!cu.Y?' Satuan di file tidak terbaca, dianggap meter.':'')+(cu.M&&cu.Y?' File berisi dua satuan, semuanya diubah ke '+uL(unit)+'.':'')};
@@ -231,7 +232,7 @@ function buyerList(q){
 }
 /*/B*/
 function prog(o){
-  const u0=o.rows[0].u||'M',rs=o.rows.map((r,i)=>{const u=r.u||'M',v=ambil(r.code,u);return {code:r.code,qty:r.qty,got:v.t,g:v.g,k:v.k,u:u,i:i,cl:r.closed};});
+  const u0=o.rows[0].u||'M',rs=o.rows.map((r,i)=>{const u=r.u||'M',v=ambil(r.code,u);return {code:r.code,qty:r.qty,got:v.t,g:v.g,p:v.p,k:v.k,u:u,i:i,cl:r.closed};});
   const tq=rs.reduce((a,r)=>a+conv(r.qty,r.u,u0),0),tg=rs.reduce((a,r)=>a+conv(r.got,r.u,u0),0);
   return {u0:u0,rs:rs,tq:tq,tg:tg,p:tq?tg/tq*100:0};
 }
@@ -239,12 +240,12 @@ function card(o,oi,cnt,q,open){
   const P=prog(o),vis=q?P.rs.filter(r=>r.code.indexOf(q)>=0):P.rs;if(q&&!vis.length)return '';
   const body=vis.map(r=>{
     const s=r.cl?(r.got>=r.qty*.9?[2,'Close']:[1,'Close, kurang '+fmt(r.qty-r.got)+' '+uS(r.u)]):stat(r),pc=r.qty?r.got/r.qty*100:0,sx=r.u!==P.u0?' '+uS(r.u):'',gr=Object.keys(r.g).sort().map(k=>'Grade '+k+' '+fmt(r.g[k])).join(', ');
-    return '<tr'+(r.cl?' class="cl"':'')+'><td>'+esc(r.code)+'<small>'+esc(gr)+'</small>'+(r.cl?'<small>Close '+esc(r.cl.split('-').reverse().join('-'))+'</small>':'')+(r.k&&(r.k.L||r.k.R)?'<small><span class="ck">Sudah cek (L) '+fmt(r.k.L)+'</span> <span class="cr">Belum cek (R) '+fmt(r.k.R)+'</span>'+(r.k.X?' Tanpa status '+fmt(r.k.X):'')+'</small>':'')+(cnt[r.code]>1?'<small>Kode ini juga ada di order lain</small>':'')+'</td><td>'+fmt(r.qty)+sx+'</td><td>'+fmt(r.got)+sx+'</td><td>'+(r.got>r.qty?'lebih '+fmt(r.got-r.qty):fmt(r.qty-r.got))+sx+'</td><td>'+fmt(pc)+'%<br><span class="tg s'+s[0]+'">'+s[1]+'</span><div class="mini"><i style="width:'+Math.min(100,pc)+'%"></i></div><button class="btn rb" '+(r.cl?'data-ro':'data-rc')+'="'+oi+':'+r.i+'">'+(r.cl?'Buka kembali':'Tandai close')+'</button></td></tr>';
+    return '<tr'+(r.cl?' class="cl"':'')+'><td>'+esc(r.code)+'<small>'+esc(gr)+'</small>'+(r.cl?'<small>Close '+esc(r.cl.split('-').reverse().join('-'))+'</small>':'')+(r.k&&(r.k.L||r.k.R)?'<small><span class="ck">Sudah cek (L) '+fmt(r.k.L)+'</span> <span class="cr">Belum cek (R) '+fmt(r.k.R)+'</span>'+(r.k.X?' Tanpa status '+fmt(r.k.X):'')+'</small>':'')+(cnt[r.code]>1?'<small>Kode ini juga ada di order lain</small>':'')+'</td><td>'+fmt(r.qty)+sx+'</td><td>'+fmt(r.got)+sx+'</td><td>'+(r.p>0?fmt(r.p):'-')+'</td><td'+(r.got<r.qty*.9?' class="kr"':'')+'>'+(r.got>r.qty?'lebih '+fmt(r.got-r.qty):fmt(r.qty-r.got))+sx+'</td><td>'+fmt(pc)+'%<br><span class="tg s'+s[0]+'">'+s[1]+'</span><div class="mini"><i style="width:'+Math.min(100,pc)+'%"></i></div><button class="btn rb" '+(r.cl?'data-ro':'data-rc')+'="'+oi+':'+r.i+'">'+(r.cl?'Buka kembali':'Tandai close')+'</button></td></tr>';
   }).join('');
   const meta=[['O.P',o.op||o.id],['Kontrak',o.contract],['Tujuan',o.dest],['Kirim',o.shipment]].filter(x=>x[1]).map(x=>'<span>'+x[0]+' '+esc(x[1])+'</span>').join('');
   const u=uS(P.u0),nc=o.rows.filter(r=>r.closed).length,kR=P.rs.reduce((a,r)=>a+(r.k?conv(r.k.R,r.u,P.u0):0),0);
   const gb=(o.gab||[]).map(g=>'<div class="gb"><span class="tg s1">Kirim gabung</span> '+esc(g.ket)+'</div>').join('');
-  return '<details class="ord" data-oi="'+oi+'"'+(open||q?' open':'')+'><summary><div class="oh"><b>'+esc(bNama(o))+(oDone(o)?' <span class="tg s2">Semua warna close</span>':'')+'</b><span>'+fmt(P.p)+'%</span></div><div class="meta"><span>'+fmt(P.tg)+' dari '+fmt(P.tq)+' '+u+'</span>'+(nc?'<span>'+nc+' dari '+o.rows.length+' warna close</span>':'')+(kR>0?'<span class="cr">Belum cek (R) '+fmt(kR)+' '+u+'</span>':'')+meta+'</div>'+gb+'<div class="pg"><i style="width:'+Math.min(100,P.p)+'%"></i></div></summary><div class="tx"><table><thead><tr><th>Kode</th><th>Order ('+u+')</th><th>Sudah ada ('+u+')</th><th>Sisa ('+u+')</th><th>Capaian</th></tr></thead><tbody>'+body+'</tbody></table></div><div class="ft"><span class="note">File '+esc(o.file||'')+'</span><span><button class="btn" data-del="'+oi+'">Hapus</button></span></div></details>';
+  return '<details class="ord" data-oi="'+oi+'"'+(open||q?' open':'')+'><summary><div class="oh"><b>'+esc(bNama(o))+(oDone(o)?' <span class="tg s2">Semua warna close</span>':'')+'</b><span>'+fmt(P.p)+'%</span></div><div class="meta"><span>'+fmt(P.tg)+' dari '+fmt(P.tq)+' '+u+'</span>'+(nc?'<span>'+nc+' dari '+o.rows.length+' warna close</span>':'')+(kR>0?'<span class="cr">Belum cek (R) '+fmt(kR)+' '+u+'</span>':'')+meta+'</div>'+gb+'<div class="pg"><i style="width:'+Math.min(100,P.p)+'%"></i></div></summary><div class="tx"><table><thead><tr><th>Kode</th><th>Order ('+u+')</th><th>Sudah ada ('+u+')</th><th>Pcs</th><th>Sisa ('+u+')</th><th>Capaian</th></tr></thead><tbody>'+body+'</tbody></table></div><div class="ft"><span class="note">File '+esc(o.file||'')+'</span><span><button class="btn" data-del="'+oi+'">Hapus</button></span></div></details>';
 }
 function render(){
   $('#cpdf').textContent=D.orders.length?' ('+D.orders.length+')':'';$('#cxls').textContent=D.src.length?' ('+D.src.length+')':'';
