@@ -47,6 +47,9 @@ details.done{margin-top:18px}details.done>summary{cursor:pointer;font-weight:600
 .bd{display:inline-block;min-width:20px;padding:0 6px;margin-left:5px;border-radius:10px;background:var(--hibg);color:var(--hi);font-size:12px}
 .by{display:block;width:100%;text-align:left;font:inherit;color:inherit;background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px 14px;margin:10px 0;cursor:pointer}
 .by:focus-visible{outline:2px solid var(--acc);outline-offset:2px}.bn{font-size:18px;margin:12px 0 0}.back{margin-top:6px}
+/* judul detail buyer tetap di atas saat halaman digulir */
+.dh{position:sticky;top:env(safe-area-inset-top,0px);z-index:4;display:flex;align-items:center;gap:10px;margin:6px -14px 0;padding:8px 14px;background:var(--bg);border-bottom:1px solid var(--line)}
+.dh .btn{flex:none;min-height:40px}.dh .bn{margin:0;font-size:16px;line-height:1.25;flex:1;min-width:0;overflow-wrap:anywhere}
 details.bk{margin-top:28px}details.bk summary{cursor:pointer;font-weight:600;min-height:32px}
 tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-top:6px}
 .seg{display:flex;margin:14px 0 0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}.seg button{flex:1;min-height:44px;border:0;background:none;color:var(--mut);font:inherit;cursor:pointer;padding:0 8px}.seg button+button{border-left:1px solid var(--line)}.seg button[aria-current=true]{background:var(--acc);color:var(--on);font-weight:600}.seg button:focus-visible{outline:2px solid var(--acc);outline-offset:-4px}
@@ -266,7 +269,7 @@ function render(){
   if(!buyer){$('#list').innerHTML=buyerList(q);return;}
   const act=[],dn=[];
   D.orders.forEach((o,i)=>{if(bKey(o)!==buyer)return;const h=card(o,i,cnt,q,!oDone(o)&&!act.length);if(h)(oDone(o)?dn:act).push(h);});
-  let html='<div class="back"><button class="btn" data-back="1">Kembali ke daftar buyer</button></div><h2 class="bn">'+esc(bNama(D.orders.find(o=>bKey(o)===buyer)))+'</h2>'+act.join('');
+  let html='<div class="dh"><button class="btn" data-back="1" aria-label="Kembali ke daftar buyer">Daftar buyer</button><h2 class="bn">'+esc(bNama(D.orders.find(o=>bKey(o)===buyer)))+'</h2></div>'+act.join('');
   if(!act.length)html+='<p class="note">'+(q&&!dn.length?'Tidak ada kode yang cocok.':q?'':'Semua order buyer ini sudah close.')+'</p>';
   if(dn.length)html+='<details class="done"'+(q?' open':'')+'><summary>Order close ('+dn.length+')</summary>'+dn.join('')+'</details>';
   $('#list').innerHTML=html;
