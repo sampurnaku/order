@@ -153,14 +153,14 @@ async function bacaExcel(f){
   const rows=XLSX.utils.sheet_to_json(wb.Sheets[wb.SheetNames[0]],{header:1,raw:true,defval:null});
   const hi=rows.findIndex(r=>r.indexOf('Kd. Order')>=0&&r.indexOf('Qty')>=0);
   if(hi<0)throw new Error('Kolom "Kd. Order" dan "Qty" tidak ditemukan. Pastikan ini file Detail Barang By Jenis Proses.');
-  const h=rows[hi],ci=h.indexOf('Kd. Order'),qi=h.indexOf('Qty'),gi=h.indexOf('Grade'),bi=h.indexOf('Bun'),mi=h.indexOf('Material'),ki=h.findIndex(x=>/karton/i.test(String(x==null?'':x))),data=[];
+  const h=rows[hi],ci=h.indexOf('Kd. Order'),qi=h.indexOf('Qty'),gi=h.indexOf('Grade'),bi=h.indexOf('Bun'),mi=h.indexOf('Material'),ki=h.findIndex(x=>/^doc\.?\s*ref+\.?$/i.test(String(x==null?'':x).trim())),data=[];
   rows.slice(hi+1).forEach(r=>{const c=String(r[ci]==null?'':r[ci]).replace(/\s+/g,' ').trim().toUpperCase(),q=num(r[qi]);if(c&&q)data.push({c:c,q:q,g:String(r[gi]==null?'-':r[gi]).trim()||'-',u:bi>=0?normU(r[bi]):'',m:mi>=0&&r[mi]!=null?String(r[mi]).trim():'',k:ki>=0?(({L:'L',R:'R'})[String(r[ki]==null?'':r[ki]).trim().toUpperCase().charAt(0)]||'X'):''});});
   const cu={M:0,Y:0},recv={};data.forEach(d=>{if(d.u)cu[d.u]++;});
   const unit=cu.Y>cu.M?'Y':'M';
   data.forEach(d=>{const q=conv(d.q,d.u||unit,unit),x=recv[d.c]||(recv[d.c]={t:0,g:{}});x.t+=q;x.g[d.g]=(x.g[d.g]||0)+q;if(d.m&&!x.m)x.m=d.m;if(d.k){x.k=x.k||{L:0,R:0,X:0};x.k[d.k]+=q;}});
   const dm=String((rows[0]||[])[0]||'').match(/\((\d{2}-\d{2}-\d{4})\)/);
   return {id:'s'+Date.now().toString(36),file:f.name,tgl:dm?dm[1]:'',rows:data.length,unit:unit,recv:recv,
-    note:(ki<0?' Kolom list karton tidak ditemukan, status sudah cek / belum cek tidak terisi.':'')+(!cu.M&&!cu.Y?' Satuan di file tidak terbaca, dianggap meter.':'')+(cu.M&&cu.Y?' File berisi dua satuan, semuanya diubah ke '+uL(unit)+'.':'')};
+    note:(ki<0?' Kolom "Doc Reff" tidak ditemukan, status sudah cek / belum cek tidak terisi.':'')+(!cu.M&&!cu.Y?' Satuan di file tidak terbaca, dianggap meter.':'')+(cu.M&&cu.Y?' File berisi dua satuan, semuanya diubah ke '+uL(unit)+'.':'')};
 }
 function tanya(nw){
   return new Promise(res=>{
