@@ -82,6 +82,10 @@ details.done{margin-top:18px}details.done>summary{cursor:pointer;font-weight:600
 .gcard .nw{white-space:nowrap}.gcard .tg{font-size:10px;padding:1px 5px;line-height:1.25}
 .gcard td:nth-child(-n+3){overflow-wrap:anywhere}
 @media(max-width:400px){.gcard{margin-left:-10px;margin-right:-10px;border-left:0;border-right:0;border-radius:0}}
+.lk{font:inherit;color:var(--acc);background:none;border:0;padding:4px 0;margin:0;text-align:left;text-decoration:underline;cursor:pointer;min-height:32px;overflow-wrap:anywhere}
+.lk:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.gcard td small{display:block;color:var(--mut);font-size:10px;line-height:1.25}
+.gcard.d td,.gcard.d th{text-align:left;overflow-wrap:anywhere}.gcard.d th{white-space:nowrap;overflow-wrap:normal;padding-left:3px;padding-right:3px}.gcard.d td{padding-left:3px;padding-right:3px}.gcard.d td:nth-child(n+7),.gcard.d th:nth-child(n+7){text-align:right}
 details.bk{margin-top:28px}details.bk summary{cursor:pointer;font-weight:600;min-height:32px}
 tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-top:6px}
 .seg{display:flex;margin:14px 0 0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}.seg button{flex:1;min-height:44px;border:0;background:none;color:var(--mut);font:inherit;cursor:pointer;padding:0 8px}.seg button+button{border-left:1px solid var(--line)}.seg button[aria-current=true]{background:var(--acc);color:var(--on);font-weight:600}.seg button:focus-visible{outline:2px solid var(--acc);outline-offset:-4px}
@@ -115,7 +119,7 @@ tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-to
 <label class="btn">Pilih file cadangan<input type="file" id="fbk" accept=".json,application/json" hidden></label><button class="btn" data-bk="teks">Impor dari teks</button></div>
 <textarea id="tbk" spellcheck="false" placeholder="Teks cadangan muncul di sini. Untuk impor dari teks, tempel isi cadangan lalu tekan Impor dari teks."></textarea></details>
 </section>
-<div id="sch" hidden><input type="search" id="cari" placeholder="Cari kode, misalnya LCKMJ13I" aria-label="Cari kode"></div>
+<div id="sch" hidden><input type="search" id="cari" placeholder="Cari kode, misalnya LCKMJ13I" aria-label="Cari kode"><p class="note" id="hint" hidden>Bisa beberapa kata sekaligus, semuanya harus cocok. Contoh: RO15 5120 JET BLACK. Pakai tanda kutip untuk frasa: "L KIRIM". Untuk satu kolom: grade:A, sbin:RO15, doc:TZ005, kd:LCBC, material:5120, color:BLACK, lot:A/3, tgl:2023, durasi:years.</p></div>
 <section id="p-unk" hidden><div id="unklist"></div></section>
 <section id="p-stk" hidden><div id="list"></div></section>
 <section id="p-grd" hidden><div id="grdlist"></div></section>
@@ -130,8 +134,8 @@ function setSh(){
   document.querySelectorAll('#list details.ord[open][data-oi]').forEach(d=>{const s=d.querySelector('summary');if(s)d.style.setProperty('--sh',s.offsetHeight+'px');});
 }
 document.addEventListener('toggle',setSh,true);window.addEventListener('resize',setSh);window.addEventListener('load',setSh);
-let curTab='up',gsel=null;
-function schVis(){$('#sch').hidden=curTab==='up'||(curTab==='grd'&&!gsel);}
+let curTab='up',gsel=null,gd=null,gA=[];
+function schVis(){$('#sch').hidden=curTab==='up'||(curTab==='grd'&&!D.grd.length);$('#hint').hidden=curTab!=='grd';}
 function setGh(){
   const h=document.querySelector('#grdlist .gsh'),el=$('#grdlist');if(!h)return;
   const t=el.querySelector('.tx');if(t){t.classList.remove('ov');if(t.scrollWidth>t.clientWidth+1)t.classList.add('ov');}
@@ -139,7 +143,7 @@ function setGh(){
 }
 window.addEventListener('resize',setGh);window.addEventListener('load',setGh);
 function setTab(t){curTab=t;['up','unk','stk','grd'].forEach(k=>{$('#p-'+k).hidden=k!==t;});schVis();
-  $('#cari').placeholder=t==='stk'?'Cari buyer atau kode':t==='grd'?'Cari material, kode order, atau color':'Cari kode, misalnya LCKMJ13I';
+  $('#cari').placeholder=t==='stk'?'Cari buyer atau kode':t==='grd'?'Cari sbin, doc reff, grade, kd. order, material, color':'Cari kode, misalnya LCKMJ13I';
   if($('#cari').value){$('#cari').value='';render();}
   document.querySelectorAll('.nav button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.tab===t)));window.scrollTo(0,0);setGh();}
 function setSub(k){$('#u-pdf').hidden=k!=='pdf';$('#u-xls').hidden=k!=='xls';$('#u-grd').hidden=k!=='grd';document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.sub===k)));}
@@ -369,43 +373,65 @@ async function bacaGrade(f){
   const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});let rows=[],hi=-1;
   for(const n of wb.SheetNames){rows=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null});hi=rows.findIndex(r=>r.indexOf('Kd. Order')>=0&&r.indexOf('Qty')>=0);if(hi>=0)break;}
   if(hi<0)throw new Error(f.name+': kolom "Kd. Order" dan "Qty" tidak ditemukan. Pastikan ini file Detail Barang By Jenis Proses.');
-  const h=rows[hi],ix=n=>h.indexOf(n),ci=ix('Kd. Order'),qi=ix('Qty'),mi=ix('Material'),li=ix('Color'),pi=ix('Pcs'),di=ix('Duration'),ti=ix('Trans. Date'),bi=ix('Bun');
+  const h=rows[hi],ix=n=>h.indexOf(n),fx=re=>h.findIndex(x=>re.test(String(x==null?'':x).trim())),ci=ix('Kd. Order'),qi=ix('Qty'),mi=ix('Material'),pi=ix('Pcs'),di=ix('Duration'),ti=ix('Trans. Date'),bi=ix('Bun'),
+    si=fx(/^s\.?\s*bin$/i),ki=fx(/^doc\.?\s*ref+\.?$/i),gi=ix('Grade'),lt=ix('Lot'),ai=ix('Accs');
+  let li=ix('Color');
+  /* di sebagian file kolom Color berisi 0/1 dan nama warna ada di kolom sebelahnya (Accs); pilih kolom yang isinya nama */
+  const nm=i=>{if(i<0)return 0;let n=0,t=0;rows.slice(hi+1,hi+301).forEach(r=>{const v=String(r[i]==null?'':r[i]).trim();if(!v)return;t++;if(v!=='-'&&isNaN(Number(v)))n++;});return t?n/t:0;};
+  if(li<0||(nm(li)<.5&&nm(ai)>nm(li)))li=ai>=0?ai:li;
   const title=String((rows[0]||[])[0]||'').replace(/\s+/g,' ').trim();
   const name=title.replace(/^Detail Barang By Jenis Proses\s*/i,'').trim()||f.name.replace(/\.[^.]+$/,''),dm=name.match(/\((\d{2}-\d{2}-\d{4})\)/),tgl=dm?dm[1]:'';
   const dt=v=>{if(typeof v==='number'){const o=XLSX.SSF.parse_date_code(v);return o?String(o.d).padStart(2,'0')+'-'+String(o.m).padStart(2,'0')+'-'+o.y:'';}return String(v==null?'':v).trim();};
-  const g={},cu={M:0,Y:0};let n=0;
+  const cv=v=>String(v==null?'':v).replace(/\s+/g,' ').trim(),S=[],mp={},sx=v=>{let i=mp[v];if(i==null){i=S.length;mp[v]=i;S.push(v);}return i;};
+  const R=[],cu={M:0,Y:0};
   rows.slice(hi+1).forEach(r=>{
-    const k=String(r[ci]==null?'':r[ci]).trim(),q=num(r[qi]),p=pi>=0?num(r[pi]):0;if(!k||(!q&&!p))return;
-    const m=String(mi>=0&&r[mi]!=null?r[mi]:'').trim(),c=String(li>=0&&r[li]!=null?r[li]:'').trim()||'-',d=dt(ti>=0?r[ti]:''),u=bi>=0?normU(r[bi]):'';
-    if(u)cu[u]++;
-    const b=bucketDur(di>=0?r[di]:'',tgl,d),key=m+'|'+k+'|'+c+'|'+b,x=g[key]||(g[key]={m:m,k:k,c:c,b:b,p:0,q:0,d:''});
-    x.p+=p;x.q+=q;if(tglKey(d)>tglKey(x.d))x.d=d;n++;
+    const k=cv(r[ci]),q=num(r[qi]),p=pi>=0?num(r[pi]):0;if(!k||(!q&&!p))return;
+    const d=dt(ti>=0?r[ti]:''),u=bi>=0?normU(r[bi]):'';if(u)cu[u]++;
+    R.push([sx(si>=0?cv(r[si]):''),sx(d),sx(ki>=0?cv(r[ki]):''),sx(gi>=0?cv(r[gi]):''),sx(k),sx(mi>=0?cv(r[mi]):''),sx((li>=0?cv(r[li]):'')||'-'),sx(lt>=0?cv(r[lt]):''),sx(di>=0?cv(r[di]):''),sx(bi>=0?cv(r[bi]):''),p,q,bucketDur(di>=0?r[di]:'',tgl,d)]);
   });
-  if(!n)throw new Error(f.name+': tidak ada baris data yang terbaca.');
-  return {id:'g'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),name:name,file:f.name,tgl:tgl,unit:cu.Y>cu.M?'Y':'M',rows:n,g:Object.keys(g).map(x=>g[x])};
+  if(!R.length)throw new Error(f.name+': tidak ada baris data yang terbaca.');
+  return {id:'g'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),name:name,file:f.name,tgl:tgl,unit:cu.Y>cu.M?'Y':'M',rows:R.length,S:S,r:R};
 }
 async function tambahGrade(fs){
   const out=[];
   for(const f of fs){const nw=await bacaGrade(f),i=D.grd.findIndex(x=>x.name===nw.name);
     if(i>=0){nw.id=D.grd[i].id;D.grd[i]=nw;}else D.grd.push(nw);
-    out.push(nw.name+(i>=0?' diperbarui: ':' ditambahkan: ')+fmt(nw.rows)+' baris, '+fmt(nw.g.length)+' kelompok.');}
+    out.push(nw.name+(i>=0?' diperbarui: ':' ditambahkan: ')+fmt(nw.rows)+' baris.');}
   return out.join(' ');
 }
-function gTot(s){const t=[0,0,0];s.g.forEach(x=>{t[x.b]+=x.q;});return {t:t,sum:t[0]+t[1]+t[2],p:s.g.reduce((a,x)=>a+x.p,0),kd:s.g.map(x=>x.k).filter((x,i,a)=>a.indexOf(x)===i).length};}
+/* baris mentah per file; urutan kolom f: S.bin, Trans. Date, Doc Reff, Grade, Kd. Order, Material, Color, Lot, Duration */
+const XC=new WeakMap(),ALIAS={SB:0,SBIN:0,'S.BIN':0,TGL:1,TANGGAL:1,DATE:1,DOC:2,REF:2,DOCREFF:2,GRADE:3,GR:3,KD:4,ORDER:4,KDORDER:4,MATERIAL:5,MAT:5,COLOR:6,WARNA:6,LOT:7,DURASI:8,DURATION:8};
+function gRows(s){
+  let x=XC.get(s);if(x)return x;
+  if(s.r){const S=s.S;x=s.r.map(a=>{const f=[0,1,2,3,4,5,6,7,8].map(i=>S[a[i]]);return {f:f,bn:S[a[9]],p:a[10],q:a[11],b:a[12]};});}
+  else x=(s.g||[]).map(g=>({f:['',g.d,'','',g.k,g.m,g.c,'',''],bn:'',p:g.p,q:g.q,b:g.b,lg:1}));/* data lama: sudah diringkas, belum ada baris mentah */
+  x.forEach(o=>{o.u=o.f.map(v=>v.toUpperCase());o.h=o.u.join('\n');o.m=o.f[5];o.k=o.f[4];o.c=o.f[6];});
+  XC.set(s,x);return x;
+}
+function qTok(q){return (q.match(/"[^"]*"|\S+/g)||[]).map(t=>{t=t.replace(/"/g,'').trim();const m=t.match(/^([A-Z.]+):(.+)$/);return m&&ALIAS[m[1]]!=null?{i:ALIAS[m[1]],v:m[2].trim()}:{i:-1,v:t};}).filter(t=>t.v);}
+const gHit=(o,tk)=>tk.every(t=>t.i<0?o.h.indexOf(t.v)>=0:t.i===3?o.u[3]===t.v:o.u[t.i].indexOf(t.v)>=0);
+function gAgg(rs){const g={};rs.forEach(o=>{const key=o.m+'|'+o.k+'|'+o.c+'|'+o.b,x=g[key]||(g[key]={m:o.m,k:o.k,c:o.c,b:o.b,p:0,q:0,d:'',n:0,lg:o.lg});x.p+=o.p;x.q+=o.q;x.n++;if(tglKey(o.f[1])>tglKey(x.d))x.d=o.f[1];});return Object.keys(g).map(k=>g[k]);}
+function gTot(rs){const t=[0,0,0],kd={};let p=0;rs.forEach(o=>{t[o.b]+=o.q;p+=o.p;kd[o.k]=1;});return {t:t,sum:t[0]+t[1]+t[2],p:p,kd:Object.keys(kd).length};}
 function renderG(){
   $('#cgrd').textContent=D.grd.length?' ('+D.grd.length+')':'';
-  $('#grdsrc').innerHTML=D.grd.length?'<p class="note">Stock grade terunggah:</p>'+D.grd.map((s,i)=>'<div class="sr"><span>'+esc(s.name)+'<small>'+uL(s.unit)+', '+fmt(s.rows)+' baris, file '+esc(s.file)+'</small></span><button class="btn" data-gdel="'+i+'">Hapus</button></div>').join(''):'<p class="note">Belum ada file stock grade. Tekan Upload stock grade dan pilih file Excel.</p>';
-  const q=$('#cari').value.trim().toUpperCase(),el=$('#grdlist');
+  $('#grdsrc').innerHTML=D.grd.length?'<p class="note">Stock grade terunggah:</p>'+D.grd.map((s,i)=>'<div class="sr"><span>'+esc(s.name)+'<small>'+uL(s.unit)+', '+fmt(s.rows||0)+' baris, file '+esc(s.file)+(s.r?'':'. Format lama, unggah ulang file ini supaya pencarian semua kolom dan detail bisa dipakai')+'</small></span><button class="btn" data-gdel="'+i+'">Hapus</button></div>').join(''):'<p class="note">Belum ada file stock grade. Tekan Upload stock grade dan pilih file Excel.</p>';
+  const q=$('#cari').value.trim().toUpperCase(),tk=qTok(q),el=$('#grdlist'),ft=s=>{const a=gRows(s);return tk.length?a.filter(o=>gHit(o,tk)):a;};
   if(gsel&&!D.grd.some(s=>s.id===gsel))gsel=null;
   if(!gsel){
-    el.innerHTML=D.grd.length?D.grd.map(s=>{const T=gTot(s);return '<button class="by" data-gsel="'+esc(s.id)+'"><div class="oh"><b>'+esc(s.name)+'</b><span>'+fmt(T.sum)+' '+uS(s.unit)+'</span></div><div class="meta"><span>'+fmt(T.kd)+' Kd. Order</span><span>'+fmt(T.p)+' pcs</span></div><div class="gtags">'+[0,1,2].map(b=>'<span class="tg '+BC[b]+'">'+BS[b]+' '+fmt(T.t[b])+'</span>').join('')+'</div></button>';}).join(''):'<p class="note">Belum ada data stock grade. Unggah file Excel di menu Upload, bagian Stock grade.</p>';
+    gd=null;
+    const cards=D.grd.map(s=>{const rs=ft(s);if(!rs.length)return '';const T=gTot(rs);return '<button class="by" data-gsel="'+esc(s.id)+'"><div class="oh"><b>'+esc(s.name)+'</b><span>'+fmt(T.sum)+' '+uS(s.unit)+'</span></div><div class="meta"><span>'+fmt(T.kd)+' Kd. Order</span><span>'+fmt(T.p)+' pcs</span>'+(tk.length?'<span>'+fmt(rs.length)+' baris cocok</span>':'')+'</div><div class="gtags">'+[0,1,2].map(b=>'<span class="tg '+BC[b]+'">'+BS[b]+' '+fmt(T.t[b])+'</span>').join('')+'</div></button>';}).join('');
+    el.innerHTML=cards||'<p class="note">'+(D.grd.length?'Tidak ada data yang cocok.':'Belum ada data stock grade. Unggah file Excel di menu Upload, bagian Stock grade.')+'</p>';
     schVis();return;}
-  const s=D.grd.find(x=>x.id===gsel),T=gTot(s),u=uS(s.unit),cmp=(a,b)=>a<b?-1:a>b?1:0;
-  let rs=s.g.slice().sort((a,b)=>(+a.m-+b.m)||cmp(a.m,b.m)||cmp(a.k,b.k)||cmp(a.c,b.c)||a.b-b.b);
-  if(q)rs=rs.filter(x=>(x.m+' '+x.k+' '+x.c).toUpperCase().indexOf(q)>=0);
+  const s=D.grd.find(x=>x.id===gsel),u=uS(s.unit),cmp=(a,b)=>a<b?-1:a>b?1:0,rs=ft(s);
+  if(gd){
+    const dr=rs.filter(o=>o.m===gd.m&&o.k===gd.k&&o.c===gd.c&&o.b===gd.b).sort((a,b)=>a.f[0].localeCompare(b.f[0],undefined,{numeric:true})||tglKey(a.f[1])-tglKey(b.f[1])||cmp(a.f[2],b.f[2])),T=gTot(dr),pc=dr.reduce((a,o)=>a+o.p,0);
+    const body=dr.map(o=>'<tr><td>'+esc(o.f[0])+'</td><td>'+esc(o.f[2])+'<small>Grade '+esc(o.f[3])+' · '+esc(o.f[1])+'</small>'+(o.f[7]?'<small>Lot '+esc(o.f[7])+'</small>':'')+(o.f[8]?'<small>'+esc(o.f[8])+'</small>':'')+'</td><td>'+esc(o.f[4])+'</td><td>'+esc(o.f[5])+'</td><td>'+esc(o.f[6])+'</td><td class="nw">'+esc(o.bn)+'</td><td>'+fmt(o.p)+'</td><td>'+fmt(o.q)+'</td></tr>').join('');
+    el.innerHTML='<div class="gsh"><div class="dh"><button class="btn" data-gdback="1" aria-label="Kembali ke daftar material">Kembali</button><h2 class="bn">Material '+esc(gd.m)+'</h2></div><div class="gtags"><span class="tg s0">'+esc(s.name)+'</span><span class="tg s0">Kd. Order '+esc(gd.k)+'</span><span class="tg s0">Color '+esc(gd.c)+'</span><span class="tg '+BC[gd.b]+'">'+BS[gd.b]+'</span><span class="tg s0">'+fmt(dr.length)+' baris: '+fmt(pc)+' pcs, '+fmt(T.sum)+' '+u+'</span></div></div><div class="gcard d"><div class="tx"><table><thead><tr><th>S.bin</th><th>Doc Reff</th><th>Kd. Order</th><th>Material</th><th>Color</th><th>Bun</th><th>Pcs</th><th>Qty ('+u+')</th></tr></thead><tbody>'+(body||'<tr><td colspan="8">'+(rs.length||!q?'Tidak ada data yang cocok.':'Tidak ada data yang cocok dengan pencarian.')+'</td></tr>')+'</tbody></table></div></div>';
+    schVis();setGh();return;}
+  gA=gAgg(rs).sort((a,b)=>(+a.m-+b.m)||cmp(a.m,b.m)||cmp(a.k,b.k)||cmp(a.c,b.c)||a.b-b.b);
   const F={p:0,q:0,t:[0,0,0]};rs.forEach(x=>{F.p+=x.p;F.q+=x.q;F.t[x.b]+=x.q;});
-  const body=rs.map(x=>'<tr><td>'+esc(x.m)+'</td><td>'+esc(x.k)+'</td><td>'+esc(x.c)+'</td><td>'+fmt(x.p)+'</td><td>'+fmt(x.q)+'</td><td><span class="tg '+BC[x.b]+'">'+BS[x.b]+'</span></td><td class="nw">'+esc(String(x.d).replace(/^(\d\d-\d\d-)\d\d(\d\d)$/,'$1$2'))+'</td></tr>').join('');
-  el.innerHTML='<div class="gsh"><div class="dh"><button class="btn" data-gback="1" aria-label="Kembali ke daftar stock grade">Daftar grade</button><h2 class="bn">'+esc(s.name)+'</h2></div><div class="gtags"><span class="tg s0">'+(q?'Hasil cari, '+fmt(rs.length)+' baris: ':'Total: ')+fmt(F.p)+' pcs, '+fmt(F.q)+' '+u+'</span>'+[0,1,2].map(b=>'<span class="tg '+BC[b]+'">'+BS[b]+' '+fmt(F.t[b])+'</span>').join('')+'</div></div><div class="gcard"><div class="tx"><table><thead><tr><th>Material</th><th>Kd. Order</th><th>Color</th><th>Pcs</th><th>Qty ('+u+')</th><th>Duration</th><th>Trans. Date</th></tr></thead><tbody>'+(body||'<tr><td colspan="7">Tidak ada data yang cocok.</td></tr>')+'</tbody></table></div></div>';
+  const body=gA.map((x,i)=>'<tr><td>'+(x.lg?esc(x.m):'<button class="lk" data-gm="'+i+'">'+esc(x.m)+'</button><small>'+fmt(x.n)+' baris</small>')+'</td><td>'+esc(x.k)+'</td><td>'+esc(x.c)+'</td><td>'+fmt(x.p)+'</td><td>'+fmt(x.q)+'</td><td><span class="tg '+BC[x.b]+'">'+BS[x.b]+'</span></td><td class="nw">'+esc(String(x.d).replace(/^(\d\d-\d\d-)\d\d(\d\d)$/,'$1$2'))+'</td></tr>').join('');
+  el.innerHTML='<div class="gsh"><div class="dh"><button class="btn" data-gback="1" aria-label="Kembali ke daftar stock grade">Daftar grade</button><h2 class="bn">'+esc(s.name)+'</h2></div><div class="gtags"><span class="tg s0">'+(q?'Hasil cari, '+fmt(rs.length)+' baris: ':'Total: ')+fmt(F.p)+' pcs, '+fmt(F.q)+' '+u+'</span>'+[0,1,2].map(b=>'<span class="tg '+BC[b]+'">'+BS[b]+' '+fmt(F.t[b])+'</span>').join('')+'</div>'+(s.r?'':'<p class="note">Format lama: unggah ulang file ini untuk pencarian semua kolom dan detail per material.</p>')+'</div><div class="gcard"><div class="tx"><table><thead><tr><th>Material</th><th>Kd. Order</th><th>Color</th><th>Pcs</th><th>Qty ('+u+')</th><th>Duration</th><th>Trans. Date</th></tr></thead><tbody>'+(body||'<tr><td colspan="7">Tidak ada data yang cocok.</td></tr>')+'</tbody></table></div></div>';
   schVis();setGh();
 }
 /*/G*/
@@ -417,8 +443,10 @@ $('#cari').addEventListener('input',render);
 $('#fgrd').addEventListener('change',e=>{const fs=[].slice.call(e.target.files);e.target.value='';if(fs.length)jalan(()=>tambahGrade(fs));});
 $('#grdsrc').addEventListener('click',e=>{const b=e.target.closest('[data-gdel]');if(!b)return;const s=D.grd[+b.dataset.gdel];
   if(s&&confirm('Hapus stock grade '+s.name+'?')){D.grd.splice(+b.dataset.gdel,1);if(gsel===s.id)gsel=null;save();render();msg('Stock grade dihapus.');}});
-$('#grdlist').addEventListener('click',e=>{const a=e.target.closest('[data-gsel]');if(a){gsel=a.dataset.gsel;render();window.scrollTo(0,0);return;}
-  if(e.target.closest('[data-gback]')){gsel=null;$('#cari').value='';render();window.scrollTo(0,0);}});
+$('#grdlist').addEventListener('click',e=>{const a=e.target.closest('[data-gsel]');if(a){gsel=a.dataset.gsel;gd=null;render();window.scrollTo(0,0);return;}
+  const m=e.target.closest('[data-gm]');if(m){const x=gA[+m.dataset.gm];if(x){gd={m:x.m,k:x.k,c:x.c,b:x.b};render();window.scrollTo(0,0);}return;}
+  if(e.target.closest('[data-gdback]')){gd=null;render();window.scrollTo(0,0);return;}
+  if(e.target.closest('[data-gback]')){gsel=null;gd=null;render();window.scrollTo(0,0);}});
 document.querySelector('.wrap').addEventListener('click',e=>{
   if(e.target.closest('[data-copyunk]')){
     const t=unk($('#cari').value.trim().toUpperCase()).map(x=>x.c+'\t'+['M','Y'].filter(u=>x[u]>0).map(u=>fmt(x[u])+' '+uS(u)).join(' + ')).join('\n');
@@ -457,6 +485,6 @@ $('#fbk').addEventListener('change',e=>{const f=e.target.files[0];e.target.value
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
 render();setSub('pdf');setTab(D.orders.length||D.src.length?'stk':'up');
 document.querySelector('.seg').addEventListener('click',e=>{const b=e.target.closest('[data-sub]');if(b)setSub(b.dataset.sub);});
-document.querySelector('.nav').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){if(b.dataset.tab==='grd'&&b.getAttribute('aria-current')==='true'&&gsel){gsel=null;render();}if(b.dataset.tab==='stk'&&b.getAttribute('aria-current')==='true'&&buyer){buyer=null;render();}setTab(b.dataset.tab);}});
+document.querySelector('.nav').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){if(b.dataset.tab==='grd'&&b.getAttribute('aria-current')==='true'&&gsel){if(gd)gd=null;else gsel=null;render();}if(b.dataset.tab==='stk'&&b.getAttribute('aria-current')==='true'&&buyer){buyer=null;render();}setTab(b.dataset.tab);}});
 if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
 </script></body></html>
