@@ -123,7 +123,7 @@ tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-to
 <div id="grdsrc"></div>
 </div>
 <details class="bk"><summary>Cadangan data</summary>
-<p class="note">Simpan semua order dan hasil ke satu file untuk pindah HP atau sebagai pengaman. Saat impor, semua data di aplikasi ini diganti dengan isi cadangan, tidak ditambahkan.</p>
+<p class="note">Simpan semua order, hasil, dan stock grade ke satu file untuk pindah HP atau sebagai pengaman. Saat impor, semua data di aplikasi ini diganti dengan isi cadangan, tidak ditambahkan.</p>
 <div class="bar"><button class="btn" data-bk="unduh">Unduh cadangan</button><button class="btn" data-bk="salin">Salin sebagai teks</button>
 <label class="btn">Pilih file cadangan<input type="file" id="fbk" accept=".json,application/json" hidden></label><button class="btn" data-bk="teks">Impor dari teks</button></div>
 <textarea id="tbk" spellcheck="false" placeholder="Teks cadangan muncul di sini. Untuk impor dari teks, tempel isi cadangan lalu tekan Impor dari teks."></textarea></details>
@@ -507,9 +507,9 @@ function impor(txt){
   let o;try{o=JSON.parse(txt);}catch(e){msg('Isi tidak valid. Pastikan seluruh teks cadangan tertempel.',1);return;}
   if(!o||!Array.isArray(o.orders)){msg('Ini bukan cadangan Cek Order.',1);return;}
   const sr=o.src||(o.recv&&o.info?[{id:'s-'+o.info.file,file:o.info.file,tgl:o.info.tgl,rows:o.info.rows,unit:'M',recv:o.recv}]:[]);
-  if((D.orders.length||D.src.length)&&!confirm('Ganti semua data di aplikasi ini ('+D.orders.length+' order, '+D.src.length+' file hasil) dengan isi cadangan ('+o.orders.length+' order, '+sr.length+' file hasil)?')){msg('Dibatalkan. Data tidak berubah.');return;}
+  if((D.orders.length||D.src.length||D.grd.length)&&!confirm('Ganti semua data di aplikasi ini ('+D.orders.length+' order, '+D.src.length+' file hasil, '+D.grd.length+' stock grade) dengan isi cadangan ('+o.orders.length+' order, '+sr.length+' file hasil, '+(Array.isArray(o.grd)?o.grd.length:'tanpa')+' stock grade)?')){msg('Dibatalkan. Data tidak berubah.');return;}
   D.orders=o.orders;D.src=sr;if(Array.isArray(o.grd))D.grd=o.grd;
-  mig();save();render();msg('Cadangan diimpor: '+o.orders.length+' order.');
+  mig();save();render();msg('Cadangan diimpor: '+o.orders.length+' order, '+sr.length+' file hasil, '+(Array.isArray(o.grd)?o.grd.length:0)+' file stock grade'+(Array.isArray(o.grd)?'.':' (cadangan ini dibuat sebelum fitur stock grade, jadi data stock grade yang ada tidak diubah).'));
 }
 document.querySelector('details.bk').addEventListener('click',e=>{
   const b=e.target.closest('[data-bk]');if(!b)return;const a=b.dataset.bk,t=$('#tbk');
