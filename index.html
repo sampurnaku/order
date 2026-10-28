@@ -82,8 +82,17 @@ details.done{margin-top:18px}details.done>summary{cursor:pointer;font-weight:600
 .gcard .nw{white-space:nowrap}.gcard .tg{font-size:10px;padding:1px 5px;line-height:1.25}
 .gcard td:nth-child(-n+3){overflow-wrap:anywhere}
 @media(max-width:400px){.gcard{margin-left:-10px;margin-right:-10px;border-left:0;border-right:0;border-radius:0}}
-.lk{font:inherit;color:var(--acc);background:none;border:0;padding:4px 0;margin:0;text-align:left;text-decoration:underline;cursor:pointer;min-height:32px;overflow-wrap:anywhere}
-.lk:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.gfd>summary{cursor:pointer;font-weight:600;min-height:32px;margin-top:8px}
+.gf{display:grid;grid-template-columns:repeat(2,1fr);gap:8px;margin:10px 0 4px}
+.gf label{font-size:12px;color:var(--mut);min-width:0}
+.gf input,.gf select{display:block;width:100%;min-height:40px;margin-top:2px;padding:6px 10px;border:1px solid var(--line);border-radius:8px;background:var(--card);color:var(--ink);font:inherit;font-size:14px}
+.gf input:focus-visible,.gf select:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
+.gf [hidden]{display:none}
+.gfb{grid-column:1/-1;display:flex;gap:8px}.gfb .btn{flex:1}
+@media(min-width:620px){.gf{grid-template-columns:repeat(4,1fr)}}
+.mr{display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.dbtn{font:inherit;font-size:11px;min-height:28px;padding:0 8px;border:1px solid var(--acc);border-radius:6px;background:none;color:var(--acc);cursor:pointer;white-space:nowrap}
+.dbtn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .gcard td small{display:block;color:var(--mut);font-size:10px;line-height:1.25}
 .gcard.d td,.gcard.d th{text-align:left;overflow-wrap:anywhere}.gcard.d th{white-space:nowrap;overflow-wrap:normal;padding-left:3px;padding-right:3px}.gcard.d td{padding-left:3px;padding-right:3px}.gcard.d td:nth-child(n+7),.gcard.d th:nth-child(n+7){text-align:right}
 details.bk{margin-top:28px}details.bk summary{cursor:pointer;font-weight:600;min-height:32px}
@@ -119,7 +128,20 @@ tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-to
 <label class="btn">Pilih file cadangan<input type="file" id="fbk" accept=".json,application/json" hidden></label><button class="btn" data-bk="teks">Impor dari teks</button></div>
 <textarea id="tbk" spellcheck="false" placeholder="Teks cadangan muncul di sini. Untuk impor dari teks, tempel isi cadangan lalu tekan Impor dari teks."></textarea></details>
 </section>
-<div id="sch" hidden><input type="search" id="cari" placeholder="Cari kode, misalnya LCKMJ13I" aria-label="Cari kode"><p class="note" id="hint" hidden>Bisa beberapa kata sekaligus, semuanya harus cocok. Contoh: RO15 5120 JET BLACK. Pakai tanda kutip untuk frasa: "L KIRIM". Untuk satu kolom: grade:A, sbin:RO15, doc:TZ005, kd:LCBC, material:5120, color:BLACK, lot:A/3, tgl:2023, durasi:years.</p></div>
+<div id="sch" hidden><input type="search" id="cari" placeholder="Cari kode, misalnya LCKMJ13I" aria-label="Cari kode"><p class="note" id="hint" hidden>Kotak ini mencari di semua kolom sekaligus, beberapa kata dipisah spasi. Untuk mempersempit per kolom, pakai filter di bawah.</p></div>
+<form id="gflt" hidden autocomplete="off"><details class="gfd" open><summary>Filter per kolom</summary><div class="gf">
+<label>S.bin<input type="search" data-f="sb"></label>
+<label>Doc Reff<input type="search" data-f="dr"></label>
+<label>Kd. Order<input type="search" data-f="kd"></label>
+<label>Material<input type="search" data-f="m"></label>
+<label>Grade<select data-f="gr"></select></label>
+<label>Color<input type="search" data-f="c"></label>
+<label>Lot<input type="search" data-f="lot"></label>
+<label>Duration<select data-f="du"><option value="">Semua</option><option value="0">&lt; 1 tahun</option><option value="1">1–2 tahun</option><option value="2">&gt; 2 tahun</option></select></label>
+<label>Trans. Date dari<input type="date" data-f="from"></label>
+<label>Trans. Date sampai<input type="date" data-f="to"></label>
+<div class="gfb"><button class="btn p" type="submit">Cari</button><button class="btn" type="reset">Hapus filter</button></div>
+</div></details></form>
 <section id="p-unk" hidden><div id="unklist"></div></section>
 <section id="p-stk" hidden><div id="list"></div></section>
 <section id="p-grd" hidden><div id="grdlist"></div></section>
@@ -134,8 +156,8 @@ function setSh(){
   document.querySelectorAll('#list details.ord[open][data-oi]').forEach(d=>{const s=d.querySelector('summary');if(s)d.style.setProperty('--sh',s.offsetHeight+'px');});
 }
 document.addEventListener('toggle',setSh,true);window.addEventListener('resize',setSh);window.addEventListener('load',setSh);
-let curTab='up',gsel=null,gd=null,gA=[];
-function schVis(){$('#sch').hidden=curTab==='up'||(curTab==='grd'&&!D.grd.length);$('#hint').hidden=curTab!=='grd';}
+let curTab='up',gsel=null,gd=null,gA=[],GF={};
+function schVis(){$('#sch').hidden=curTab==='up'||(curTab==='grd'&&!D.grd.length);$('#hint').hidden=curTab!=='grd';$('#gflt').hidden=!(curTab==='grd'&&D.grd.length);}
 function setGh(){
   const h=document.querySelector('#grdlist .gsh'),el=$('#grdlist');if(!h)return;
   const t=el.querySelector('.tx');if(t){t.classList.remove('ov');if(t.scrollWidth>t.clientWidth+1)t.classList.add('ov');}
@@ -409,13 +431,25 @@ function gRows(s){
   XC.set(s,x);return x;
 }
 function qTok(q){return (q.match(/"[^"]*"|\S+/g)||[]).map(t=>{t=t.replace(/"/g,'').trim();const m=t.match(/^([A-Z.]+):(.+)$/);return m&&ALIAS[m[1]]!=null?{i:ALIAS[m[1]],v:m[2].trim()}:{i:-1,v:t};}).filter(t=>t.v);}
+const gF=o=>{const F=GF;
+  if(F.sb&&o.u[0].indexOf(F.sb)<0||F.dr&&o.u[2].indexOf(F.dr)<0||F.kd&&o.u[4].indexOf(F.kd)<0||F.m&&o.u[5].indexOf(F.m)<0||F.c&&o.u[6].indexOf(F.c)<0||F.lot&&o.u[7].indexOf(F.lot)<0)return false;
+  if(F.gr&&o.u[3]!==F.gr)return false;if(F.du!==''&&F.du!=null&&o.b!==+F.du)return false;
+  if(F.from||F.to){const k=tglKey(o.f[1]);if(!k||(F.from&&k<F.from)||(F.to&&k>F.to))return false;}
+  return true;};
 const gHit=(o,tk)=>tk.every(t=>t.i<0?o.h.indexOf(t.v)>=0:t.i===3?o.u[3]===t.v:o.u[t.i].indexOf(t.v)>=0);
 function gAgg(rs){const g={};rs.forEach(o=>{const key=o.m+'|'+o.k+'|'+o.c+'|'+o.b,x=g[key]||(g[key]={m:o.m,k:o.k,c:o.c,b:o.b,p:0,q:0,d:'',n:0,lg:o.lg});x.p+=o.p;x.q+=o.q;x.n++;if(tglKey(o.f[1])>tglKey(x.d))x.d=o.f[1];});return Object.keys(g).map(k=>g[k]);}
 function gTot(rs){const t=[0,0,0],kd={};let p=0;rs.forEach(o=>{t[o.b]+=o.q;p+=o.p;kd[o.k]=1;});return {t:t,sum:t[0]+t[1]+t[2],p:p,kd:Object.keys(kd).length};}
+const gQ=()=>{const a=$('#cari').value.trim().toUpperCase();return a+(Object.keys(GF).some(k=>GF[k])?' ':'');};
+function gradeOpts(){const sel=document.querySelector('#gflt [data-f=gr]'),cur=GF.gr||'',set={};D.grd.forEach(s=>gRows(s).forEach(o=>{if(o.u[3])set[o.u[3]]=o.f[3];}));
+  const k=Object.keys(set).sort(),h='<option value="">Semua</option>'+k.map(x=>'<option value="'+esc(x)+'">'+esc(set[x])+'</option>').join('');
+  if(sel.dataset.o!==h){sel.innerHTML=h;sel.dataset.o=h;}sel.value=cur;}
+function gApply(){const g=n=>document.querySelector('#gflt [data-f='+n+']').value.trim().toUpperCase(),dk=n=>+(document.querySelector('#gflt [data-f='+n+']').value||'').replace(/-/g,'')||0;
+  GF={sb:g('sb'),dr:g('dr'),kd:g('kd'),m:g('m'),gr:g('gr'),c:g('c'),lot:g('lot'),du:document.querySelector('#gflt [data-f=du]').value,from:dk('from'),to:dk('to')};render();}
 function renderG(){
   $('#cgrd').textContent=D.grd.length?' ('+D.grd.length+')':'';
   $('#grdsrc').innerHTML=D.grd.length?'<p class="note">Stock grade terunggah:</p>'+D.grd.map((s,i)=>'<div class="sr"><span>'+esc(s.name)+'<small>'+uL(s.unit)+', '+fmt(s.rows||0)+' baris, file '+esc(s.file)+(s.r?'':'. Format lama, unggah ulang file ini supaya pencarian semua kolom dan detail bisa dipakai')+'</small></span><button class="btn" data-gdel="'+i+'">Hapus</button></div>').join(''):'<p class="note">Belum ada file stock grade. Tekan Upload stock grade dan pilih file Excel.</p>';
-  const q=$('#cari').value.trim().toUpperCase(),tk=qTok(q),el=$('#grdlist'),ft=s=>{const a=gRows(s);return tk.length?a.filter(o=>gHit(o,tk)):a;};
+  const q=gQ(),tk=qTok(q),el=$('#grdlist'),ft=s=>gRows(s).filter(o=>gF(o)&&(!tk.length||gHit(o,tk)));
+  gradeOpts();
   if(gsel&&!D.grd.some(s=>s.id===gsel))gsel=null;
   if(!gsel){
     gd=null;
@@ -430,8 +464,8 @@ function renderG(){
     schVis();setGh();return;}
   gA=gAgg(rs).sort((a,b)=>(+a.m-+b.m)||cmp(a.m,b.m)||cmp(a.k,b.k)||cmp(a.c,b.c)||a.b-b.b);
   const F={p:0,q:0,t:[0,0,0]};rs.forEach(x=>{F.p+=x.p;F.q+=x.q;F.t[x.b]+=x.q;});
-  const body=gA.map((x,i)=>'<tr><td>'+(x.lg?esc(x.m):'<button class="lk" data-gm="'+i+'">'+esc(x.m)+'</button><small>'+fmt(x.n)+' baris</small>')+'</td><td>'+esc(x.k)+'</td><td>'+esc(x.c)+'</td><td>'+fmt(x.p)+'</td><td>'+fmt(x.q)+'</td><td><span class="tg '+BC[x.b]+'">'+BS[x.b]+'</span></td><td class="nw">'+esc(String(x.d).replace(/^(\d\d-\d\d-)\d\d(\d\d)$/,'$1$2'))+'</td></tr>').join('');
-  el.innerHTML='<div class="gsh"><div class="dh"><button class="btn" data-gback="1" aria-label="Kembali ke daftar stock grade">Daftar grade</button><h2 class="bn">'+esc(s.name)+'</h2></div><div class="gtags"><span class="tg s0">'+(q?'Hasil cari, '+fmt(rs.length)+' baris: ':'Total: ')+fmt(F.p)+' pcs, '+fmt(F.q)+' '+u+'</span>'+[0,1,2].map(b=>'<span class="tg '+BC[b]+'">'+BS[b]+' '+fmt(F.t[b])+'</span>').join('')+'</div>'+(s.r?'':'<p class="note">Format lama: unggah ulang file ini untuk pencarian semua kolom dan detail per material.</p>')+'</div><div class="gcard"><div class="tx"><table><thead><tr><th>Material</th><th>Kd. Order</th><th>Color</th><th>Pcs</th><th>Qty ('+u+')</th><th>Duration</th><th>Trans. Date</th></tr></thead><tbody>'+(body||'<tr><td colspan="7">Tidak ada data yang cocok.</td></tr>')+'</tbody></table></div></div>';
+  const body=gA.map((x,i)=>'<tr><td>'+(x.lg?esc(x.m):'<div class="mr"><span>'+esc(x.m)+'</span><button class="dbtn" data-gm="'+i+'" aria-label="Detail material '+esc(x.m)+'">Detail ›</button></div><small>'+fmt(x.n)+' baris</small>')+'</td><td>'+esc(x.k)+'</td><td>'+esc(x.c)+'</td><td>'+fmt(x.p)+'</td><td>'+fmt(x.q)+'</td><td><span class="tg '+BC[x.b]+'">'+BS[x.b]+'</span></td><td class="nw">'+esc(String(x.d).replace(/^(\d\d-\d\d-)\d\d(\d\d)$/,'$1$2'))+'</td></tr>').join('');
+  el.innerHTML='<div class="gsh"><div class="dh"><button class="btn" data-gback="1" aria-label="Kembali ke daftar stock grade">Daftar grade</button><h2 class="bn">'+esc(s.name)+'</h2></div><div class="gtags"><span class="tg s0">'+(q||tk.length?'Hasil cari, '+fmt(rs.length)+' baris: ':'Total: ')+fmt(F.p)+' pcs, '+fmt(F.q)+' '+u+'</span>'+[0,1,2].map(b=>'<span class="tg '+BC[b]+'">'+BS[b]+' '+fmt(F.t[b])+'</span>').join('')+'</div>'+(s.r?'':'<p class="note">Format lama: unggah ulang file ini untuk pencarian semua kolom dan detail per material.</p>')+'</div><div class="gcard"><div class="tx"><table><thead><tr><th>Material</th><th>Kd. Order</th><th>Color</th><th>Pcs</th><th>Qty ('+u+')</th><th>Duration</th><th>Trans. Date</th></tr></thead><tbody>'+(body||'<tr><td colspan="7">Tidak ada data yang cocok.</td></tr>')+'</tbody></table></div></div>';
   schVis();setGh();
 }
 /*/G*/
@@ -440,6 +474,9 @@ $('#fpdf').addEventListener('change',e=>{const fs=[].slice.call(e.target.files);
   jalan(async()=>{const out=[];let w=false;for(const f of fs){const r=await tambahPdf(f);out.push(r.t);w=w||r.w;}return {t:out.join(' '),w:w};});});
 $('#fxls').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)jalan(()=>hasilExcel(f));});
 $('#cari').addEventListener('input',render);
+$('#gflt').addEventListener('submit',e=>{e.preventDefault();gApply();});
+$('#gflt').addEventListener('reset',()=>{GF={};setTimeout(()=>{gApply();},0);});
+$('#gflt').addEventListener('change',e=>{if(e.target.tagName==='SELECT'||e.target.type==='date')gApply();});
 $('#fgrd').addEventListener('change',e=>{const fs=[].slice.call(e.target.files);e.target.value='';if(fs.length)jalan(()=>tambahGrade(fs));});
 $('#grdsrc').addEventListener('click',e=>{const b=e.target.closest('[data-gdel]');if(!b)return;const s=D.grd[+b.dataset.gdel];
   if(s&&confirm('Hapus stock grade '+s.name+'?')){D.grd.splice(+b.dataset.gdel,1);if(gsel===s.id)gsel=null;save();render();msg('Stock grade dihapus.');}});
