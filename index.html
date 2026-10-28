@@ -397,10 +397,7 @@ async function bacaGrade(f){
   if(hi<0)throw new Error(f.name+': kolom "Kd. Order" dan "Qty" tidak ditemukan. Pastikan ini file Detail Barang By Jenis Proses.');
   const h=rows[hi],ix=n=>h.indexOf(n),fx=re=>h.findIndex(x=>re.test(String(x==null?'':x).trim())),ci=ix('Kd. Order'),qi=ix('Qty'),mi=ix('Material'),pi=ix('Pcs'),di=ix('Duration'),ti=ix('Trans. Date'),bi=ix('Bun'),
     si=fx(/^s\.?\s*bin$/i),ki=fx(/^doc\.?\s*ref+\.?$/i),gi=ix('Grade'),lt=ix('Lot'),ai=ix('Accs');
-  let li=ix('Color');
-  /* di sebagian file kolom Color berisi 0/1 dan nama warna ada di kolom sebelahnya (Accs); pilih kolom yang isinya nama */
-  const nm=i=>{if(i<0)return 0;let n=0,t=0;rows.slice(hi+1,hi+301).forEach(r=>{const v=String(r[i]==null?'':r[i]).trim();if(!v)return;t++;if(v!=='-'&&isNaN(Number(v)))n++;});return t?n/t:0;};
-  if(li<0||(nm(li)<.5&&nm(ai)>nm(li)))li=ai>=0?ai:li;
+  const li=ix('Color'); /* kolom Color dipakai apa adanya sesuai isiannya, tidak diganti kolom Accs */
   const title=String((rows[0]||[])[0]||'').replace(/\s+/g,' ').trim();
   const name=title.replace(/^Detail Barang By Jenis Proses\s*/i,'').trim()||f.name.replace(/\.[^.]+$/,''),dm=name.match(/\((\d{2}-\d{2}-\d{4})\)/),tgl=dm?dm[1]:'';
   const dt=v=>{if(typeof v==='number'){const o=XLSX.SSF.parse_date_code(v);return o?String(o.d).padStart(2,'0')+'-'+String(o.m).padStart(2,'0')+'-'+o.y:'';}return String(v==null?'':v).trim();};
