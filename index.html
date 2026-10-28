@@ -114,7 +114,8 @@ tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-to
 <div id="orders"></div>
 </div>
 <div id="u-xls" hidden>
-<div class="bar"><label class="btn p">Update hasil (Excel)<input type="file" id="fxls" accept=".xlsx,.xls" hidden></label></div>
+<div class="bar"><label class="btn p">Update hasil (Excel)<input type="file" id="fxls" accept=".xlsx,.xls" multiple hidden></label></div>
+<p class="note">Bisa pilih beberapa file sekaligus. Kalau sudah ada file hasil sebelumnya, cara penggabungannya ditanyakan satu kali untuk semua file.</p>
 <div id="src"></div>
 </div>
 <div id="u-grd" hidden>
@@ -287,6 +288,48 @@ function tanya(nw){
     d.onclose=()=>{const c=d.returnValue==='ok'&&d.querySelector('input:checked');if(!c)return res(null);const v=c.value.split(':');res({m:v[0],id:v[1]});};
     d.showModal();
   });
+}
+function rencanaOto(nw,orig,pakai){
+  const kn=Object.keys(nw.recv),n=kn.length||1;
+  const b=orig.filter(s=>!pakai[s.id]&&s.unit===nw.unit).map(s=>({s:s,r:kn.filter(c=>s.recv[c]).length/n})).filter(x=>x.r>=.5).sort((a,c)=>c.r-a.r)[0];
+  return b?b.s:null;
+}
+function tanyaBanyak(L,plan){
+  return new Promise(res=>{
+    const d=$('#dlg');
+    d.innerHTML='<form method="dialog"><h2>'+L.length+' file hasil dipilih</h2>'
+      +'<label class="op"><input type="radio" name="m" value="oto" checked><span>Otomatis (disarankan)<small>Ganti file lama yang jelas sama (satuan sama dan lebih dari separuh kodenya sama), selain itu ditambahkan.</small>'
+      +L.map((f,i)=>'<small>'+esc(f.file)+' ('+uL(f.unit)+', data per '+esc(f.tgl||'?')+'): '+(plan[i]?'ganti '+esc(plan[i].file):'tambahkan')+'</small>').join('')+'</span></label>'
+      +'<label class="op"><input type="radio" name="m" value="add"><span>Tambahkan semua sebagai file baru<small>Jumlahnya dijumlahkan dengan file hasil yang sudah ada.</small></span></label>'
+      +'<label class="op"><input type="radio" name="m" value="all"><span>Ganti semua data<small>Semua file hasil yang sudah ada dihapus, diganti file-file ini.</small></span></label>'
+      +'<div class="bar"><button class="btn" value="x">Batal</button><button class="btn p" value="ok">Lanjut</button></div></form>';
+    d.returnValue='';
+    d.onclose=()=>{const c=d.returnValue==='ok'&&d.querySelector('input:checked');res(c?c.value:null);};
+    d.showModal();
+  });
+}
+async function hasilBanyak(fs){
+  if(fs.length===1)return hasilExcel(fs[0]);
+  const L=[],gl=[];
+  for(const f of fs){try{L.push(await bacaExcel(f));}catch(e){gl.push(e.message);}}
+  if(!L.length)throw new Error(gl.join(' '));
+  let m='add',plan=[];
+  if(D.src.length){
+    const orig=D.src.slice(),pakai={};
+    plan=L.map(nw=>{const s=rencanaOto(nw,orig,pakai);if(s)pakai[s.id]=1;return s;});
+    m=await tanyaBanyak(L,plan);if(!m)return 'Dibatalkan. Data tidak berubah.';
+  }
+  let nA=0,nR=0,nS=0;
+  if(m==='all'){D.src=L.slice();nA=L.length;}
+  else L.forEach((nw,i)=>{
+    const s=m==='oto'?plan[i]:null,k=s?D.src.findIndex(x=>x.id===s.id):-1;
+    if(k>=0){
+      if(tglKey(nw.tgl)&&tglKey(nw.tgl)<tglKey(s.tgl)&&!confirm(nw.file+' bertanggal '+nw.tgl+', lebih lama dari file yang diganti ('+s.tgl+'). Tetap dipakai?')){nS++;return;}
+      D.src[k]=nw;nR++;
+    }else{D.src.push(nw);nA++;}
+  });
+  const all=[].concat.apply([],D.orders.map(o=>o.rows.filter(r=>!r.closed).map(r=>r.code))),hit=all.filter(c=>D.src.some(s=>s.recv[c])).length,nt=L.map(x=>x.note).join('');
+  return {t:(m==='all'?'Hasil: semua data diganti dengan '+L.length+' file':'Hasil: '+L.length+' file diproses, '+nA+' ditambahkan, '+nR+' diganti'+(nS?', '+nS+' dilewati':''))+'. '+hit+' dari '+all.length+' kode order yang masih berjalan ada di data hasil. '+unk('').length+' kode di file hasil belum punya Instruction Sheet.'+nt+(gl.length?' Gagal dibaca: '+gl.join(' '):''),w:!!(nt||gl.length)};
 }
 async function hasilExcel(f){
   const nw=await bacaExcel(f);let m='add',old=null;
@@ -469,7 +512,7 @@ function renderG(){
 async function jalan(fn){try{msg('Membaca file...');const r=await fn();save();render();msg(r.t||r,r.w);}catch(e){msg(e.message||'Gagal membaca file.',1);}}
 $('#fpdf').addEventListener('change',e=>{const fs=[].slice.call(e.target.files);e.target.value='';if(!fs.length)return;
   jalan(async()=>{const out=[];let w=false;for(const f of fs){const r=await tambahPdf(f);out.push(r.t);w=w||r.w;}return {t:out.join(' '),w:w};});});
-$('#fxls').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)jalan(()=>hasilExcel(f));});
+$('#fxls').addEventListener('change',e=>{const fs=[].slice.call(e.target.files);e.target.value='';if(fs.length)jalan(()=>hasilBanyak(fs));});
 $('#cari').addEventListener('input',render);
 $('#gflt').addEventListener('submit',e=>{e.preventDefault();gApply();});
 $('#gflt').addEventListener('reset',()=>{GF={};setTimeout(()=>{gApply();},0);});
