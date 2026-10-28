@@ -403,8 +403,9 @@ function renderG(){
   const s=D.grd.find(x=>x.id===gsel),T=gTot(s),u=uS(s.unit),cmp=(a,b)=>a<b?-1:a>b?1:0;
   let rs=s.g.slice().sort((a,b)=>(+a.m-+b.m)||cmp(a.m,b.m)||cmp(a.k,b.k)||cmp(a.c,b.c)||a.b-b.b);
   if(q)rs=rs.filter(x=>(x.m+' '+x.k+' '+x.c).toUpperCase().indexOf(q)>=0);
+  const F={p:0,q:0,t:[0,0,0]};rs.forEach(x=>{F.p+=x.p;F.q+=x.q;F.t[x.b]+=x.q;});
   const body=rs.map(x=>'<tr><td>'+esc(x.m)+'</td><td>'+esc(x.k)+'</td><td>'+esc(x.c)+'</td><td>'+fmt(x.p)+'</td><td>'+fmt(x.q)+'</td><td><span class="tg '+BC[x.b]+'">'+BS[x.b]+'</span></td><td class="nw">'+esc(String(x.d).replace(/^(\d\d-\d\d-)\d\d(\d\d)$/,'$1$2'))+'</td></tr>').join('');
-  el.innerHTML='<div class="gsh"><div class="dh"><button class="btn" data-gback="1" aria-label="Kembali ke daftar stock grade">Daftar grade</button><h2 class="bn">'+esc(s.name)+'</h2></div><div class="gtags"><span class="tg s0">Total '+fmt(T.sum)+' '+u+', '+fmt(T.p)+' pcs</span>'+[0,1,2].map(b=>'<span class="tg '+BC[b]+'">'+BS[b]+' '+fmt(T.t[b])+'</span>').join('')+'</div></div><div class="gcard"><div class="tx"><table><thead><tr><th>Material</th><th>Kd. Order</th><th>Color</th><th>Pcs</th><th>Qty ('+u+')</th><th>Duration</th><th>Trans. Date</th></tr></thead><tbody>'+(body||'<tr><td colspan="7">Tidak ada data yang cocok.</td></tr>')+'</tbody></table></div></div>';
+  el.innerHTML='<div class="gsh"><div class="dh"><button class="btn" data-gback="1" aria-label="Kembali ke daftar stock grade">Daftar grade</button><h2 class="bn">'+esc(s.name)+'</h2></div><div class="gtags"><span class="tg s0">'+(q?'Hasil cari, '+fmt(rs.length)+' baris: ':'Total: ')+fmt(F.p)+' pcs, '+fmt(F.q)+' '+u+'</span>'+[0,1,2].map(b=>'<span class="tg '+BC[b]+'">'+BS[b]+' '+fmt(F.t[b])+'</span>').join('')+'</div></div><div class="gcard"><div class="tx"><table><thead><tr><th>Material</th><th>Kd. Order</th><th>Color</th><th>Pcs</th><th>Qty ('+u+')</th><th>Duration</th><th>Trans. Date</th></tr></thead><tbody>'+(body||'<tr><td colspan="7">Tidak ada data yang cocok.</td></tr>')+'</tbody></table></div></div>';
   schVis();setGh();
 }
 /*/G*/
