@@ -41,7 +41,7 @@ dialog{border:1px solid var(--line);border-radius:12px;background:var(--card);co
 .op{display:flex;gap:10px;align-items:flex-start;padding:10px 0;border-top:1px solid var(--line);cursor:pointer}.op input{margin-top:3px;width:20px;height:20px;flex:none}.op small{display:block;color:var(--mut);font-size:13px}
 details.done{margin-top:18px}details.done>summary{cursor:pointer;font-weight:600;min-height:32px}
 .nav{position:fixed;left:0;right:0;bottom:0;display:flex;background:var(--card);border-top:2px solid var(--sil);padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
-.nav button{flex:1;min-height:56px;border:0;background:none;color:var(--mut);font:inherit;font-size:14px;cursor:pointer;padding:6px 4px}
+.nav button{flex:1;min-height:56px;border:0;background:none;color:var(--mut);font:inherit;font-size:13px;line-height:1.2;cursor:pointer;padding:6px 2px}
 .nav button[aria-current=true]{color:var(--acc);font-weight:600;box-shadow:inset 0 3px 0 var(--acc)}
 .nav button:focus-visible{outline:2px solid var(--acc);outline-offset:-4px}
 .bd{display:inline-block;min-width:20px;padding:0 6px;margin-left:5px;border-radius:10px;background:var(--hibg);color:var(--hi);font-size:12px}
@@ -70,6 +70,18 @@ details.done{margin-top:18px}details.done>summary{cursor:pointer;font-weight:600
 .ord[data-oi] .rb{white-space:normal;line-height:1.15;padding:4px;min-height:36px;font-size:12px}
 @media(max-width:400px){.wrap{padding-left:10px;padding-right:10px}}
 .ord[data-oi] .tx.ov{overflow-x:auto}
+/* menu Data stock grade */
+.gsh{position:sticky;top:env(safe-area-inset-top,0px);z-index:3;background:var(--bg);padding-bottom:8px;border-bottom:1px solid var(--line)}.gsh .dh{margin-top:0}
+.gtags{display:flex;flex-wrap:wrap;gap:6px;margin-top:8px}.gtags .tg{margin-top:0}
+.gcard{background:var(--card);border:1px solid var(--line);border-radius:10px;margin:10px 0;overflow:hidden;overflow:clip}
+.gcard .tx{overflow:visible;overflow-x:clip}.gcard .tx.ov{overflow-x:auto}
+.gcard table{font-size:11.5px}
+.gcard th{font-size:10px;position:sticky;top:calc(env(safe-area-inset-top,0px) + var(--gh,100px) - 1px);z-index:2;background:var(--card);box-shadow:0 1px 0 var(--line)}
+.gcard th,.gcard td{padding:7px 2px}.gcard th:first-child,.gcard td:first-child{padding-left:10px}.gcard th:last-child,.gcard td:last-child{padding-right:10px}
+.gcard td:nth-child(-n+3),.gcard th:nth-child(-n+3),.gcard td:nth-child(n+6),.gcard th:nth-child(n+6){text-align:left}
+.gcard .nw{white-space:nowrap}.gcard .tg{font-size:10px;padding:1px 5px;line-height:1.25}
+.gcard td:nth-child(-n+3){overflow-wrap:anywhere}
+@media(max-width:400px){.gcard{margin-left:-10px;margin-right:-10px;border-left:0;border-right:0;border-radius:0}}
 details.bk{margin-top:28px}details.bk summary{cursor:pointer;font-weight:600;min-height:32px}
 tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-top:6px}
 .seg{display:flex;margin:14px 0 0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}.seg button{flex:1;min-height:44px;border:0;background:none;color:var(--mut);font:inherit;cursor:pointer;padding:0 8px}.seg button+button{border-left:1px solid var(--line)}.seg button[aria-current=true]{background:var(--acc);color:var(--on);font-weight:600}.seg button:focus-visible{outline:2px solid var(--acc);outline-offset:-4px}
@@ -83,7 +95,7 @@ tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-to
 <p class="sub">PDF Instruction Sheet (IS) jadi order, Excel jadi jumlah stock fresh yang sudah didapat.</p>
 <div id="msg" role="status"></div>
 <section id="p-up">
-<div class="seg" role="group" aria-label="Jenis upload"><button data-sub="pdf">Order (PDF)<span id="cpdf"></span></button><button data-sub="xls">Update hasil<span id="cxls"></span></button></div>
+<div class="seg" role="group" aria-label="Jenis upload"><button data-sub="pdf">Order (PDF)<span id="cpdf"></span></button><button data-sub="xls">Update hasil<span id="cxls"></span></button><button data-sub="grd">Stock grade<span id="cgrd"></span></button></div>
 <div id="u-pdf">
 <div class="bar"><label class="btn p">Tambah order (PDF)<input type="file" id="fpdf" accept="application/pdf,.pdf" multiple hidden></label></div>
 <div id="orders"></div>
@@ -91,6 +103,11 @@ tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-to
 <div id="u-xls" hidden>
 <div class="bar"><label class="btn p">Update hasil (Excel)<input type="file" id="fxls" accept=".xlsx,.xls" hidden></label></div>
 <div id="src"></div>
+</div>
+<div id="u-grd" hidden>
+<div class="bar"><label class="btn p">Upload stock grade (Excel)<input type="file" id="fgrd" accept=".xlsx,.xls" multiple hidden></label></div>
+<p class="note">Pilih satu atau beberapa file Detail Barang By Jenis Proses untuk stock grade, misalnya ZB STOCK atau BS ZB. Nama di daftar mengikuti judul di dalam file Excel. Judul yang sama diperbarui, judul baru ditambahkan.</p>
+<div id="grdsrc"></div>
 </div>
 <details class="bk"><summary>Cadangan data</summary>
 <p class="note">Simpan semua order dan hasil ke satu file untuk pindah HP atau sebagai pengaman. Saat impor, semua data di aplikasi ini diganti dengan isi cadangan, tidak ditambahkan.</p>
@@ -101,9 +118,10 @@ tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-to
 <div id="sch" hidden><input type="search" id="cari" placeholder="Cari kode, misalnya LCKMJ13I" aria-label="Cari kode"></div>
 <section id="p-unk" hidden><div id="unklist"></div></section>
 <section id="p-stk" hidden><div id="list"></div></section>
+<section id="p-grd" hidden><div id="grdlist"></div></section>
 <dialog id="dlg"></dialog>
 </div>
-<nav class="nav" aria-label="Menu"><button data-tab="up">Upload</button><button data-tab="unk">Belum ada IS<span id="nbadge"></span></button><button data-tab="stk">Data stock fresh</button></nav>
+<nav class="nav" aria-label="Menu"><button data-tab="up">Upload</button><button data-tab="unk">Belum ada IS<span id="nbadge"></span></button><button data-tab="stk">Data stock fresh</button><button data-tab="grd">Data stock grade</button></nav>
 <script>
 const KEY='pelacak-order-v1',PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',PDFW='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',XLS='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
 const $=s=>document.querySelector(s);
@@ -112,12 +130,23 @@ function setSh(){
   document.querySelectorAll('#list details.ord[open][data-oi]').forEach(d=>{const s=d.querySelector('summary');if(s)d.style.setProperty('--sh',s.offsetHeight+'px');});
 }
 document.addEventListener('toggle',setSh,true);window.addEventListener('resize',setSh);window.addEventListener('load',setSh);
-function setTab(t){['up','unk','stk'].forEach(k=>{$('#p-'+k).hidden=k!==t;});$('#sch').hidden=t==='up';$('#cari').placeholder=t==='stk'?'Cari buyer atau kode':'Cari kode, misalnya LCKMJ13I';if($('#cari').value){$('#cari').value='';render();}
-  document.querySelectorAll('.nav button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.tab===t)));window.scrollTo(0,0);}
-function setSub(k){$('#u-pdf').hidden=k!=='pdf';$('#u-xls').hidden=k!=='xls';document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.sub===k)));}
-let D={orders:[],src:[]};
+let curTab='up',gsel=null;
+function schVis(){$('#sch').hidden=curTab==='up'||(curTab==='grd'&&!gsel);}
+function setGh(){
+  const h=document.querySelector('#grdlist .gsh'),el=$('#grdlist');if(!h)return;
+  const t=el.querySelector('.tx');if(t){t.classList.remove('ov');if(t.scrollWidth>t.clientWidth+1)t.classList.add('ov');}
+  el.style.setProperty('--gh',h.offsetHeight+'px');
+}
+window.addEventListener('resize',setGh);window.addEventListener('load',setGh);
+function setTab(t){curTab=t;['up','unk','stk','grd'].forEach(k=>{$('#p-'+k).hidden=k!==t;});schVis();
+  $('#cari').placeholder=t==='stk'?'Cari buyer atau kode':t==='grd'?'Cari material, kode order, atau color':'Cari kode, misalnya LCKMJ13I';
+  if($('#cari').value){$('#cari').value='';render();}
+  document.querySelectorAll('.nav button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.tab===t)));window.scrollTo(0,0);setGh();}
+function setSub(k){$('#u-pdf').hidden=k!=='pdf';$('#u-xls').hidden=k!=='xls';$('#u-grd').hidden=k!=='grd';document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.sub===k)));}
+let D={orders:[],src:[],grd:[]};
 try{const s=JSON.parse(localStorage.getItem(KEY));if(s&&Array.isArray(s.orders))D=Object.assign(D,s);}catch(e){}
 if(!Array.isArray(D.src))D.src=[];
+if(!Array.isArray(D.grd))D.grd=[];
 if(D.recv&&D.info&&!D.src.length)D.src=[{id:'s0',file:D.info.file,tgl:D.info.tgl,rows:D.info.rows,unit:'M',recv:D.recv}];
 delete D.recv;delete D.info;
 const mig=()=>D.orders.forEach(o=>{if(o.closed){o.rows.forEach(r=>{if(!r.closed)r.closed=o.closed;});delete o.closed;}if(o.gab){const a=[];o.gab.forEach(g=>{if(g.s){a.push(g);return;}let l=gabCodes(g.ket||'');if(!l.length&&/^LC[A-Z0-9]{2,}$/.test(g.kode||''))l=[g];l.forEach(x=>{if(!a.some(y=>y.ket===x.ket))a.push(x);});});o.gab=a;}});mig();
@@ -307,6 +336,7 @@ function card(o,oi,cnt,q,open){
   return '<details class="ord" data-oi="'+oi+'"'+(open||q?' open':'')+'><summary><div class="oh"><b>'+esc(bNama(o))+kdTxt([o],3)+(oDone(o)?' <span class="tg s2">Semua warna close</span>':'')+'</b><span>'+fmt(P.p)+'%</span></div><div class="sm">'+MT+'</div><div class="pg"><i style="width:'+Math.min(100,P.p)+'%"></i></div></summary>'+(gb?'<div class="bm">'+gb+'</div>':'')+'<div class="tx"><table><thead><tr><th>Kode</th><th>Order ('+u+')</th><th>Sudah ada ('+u+')</th><th>Pcs</th><th>Sisa ('+u+')</th><th>Capaian</th></tr></thead><tbody>'+body+'</tbody></table></div><div class="ft"><span class="note">File '+esc(o.file||'')+'</span><span><button class="btn" data-del="'+oi+'">Hapus</button></span></div></details>';
 }
 function render(){
+  renderG();
   $('#cpdf').textContent=D.orders.length?' ('+D.orders.length+')':'';$('#cxls').textContent=D.src.length?' ('+D.src.length+')':'';
   const q=$('#cari').value.trim().toUpperCase(),cnt={};
   D.orders.forEach(o=>o.rows.forEach(r=>cnt[r.code]=(cnt[r.code]||0)+1));
@@ -326,11 +356,68 @@ function render(){
   $('#list').innerHTML=html;setSh();
 }
 
+/*G*/
+const BS=['< 1 tahun','1–2 tahun','> 2 tahun'],BC=['s2','s1','s3'];
+const dMs=k=>Date.UTC(+String(k).slice(0,4),+String(k).slice(4,6)-1,+String(k).slice(6,8));
+function bucketDur(d,tgl,tr){
+  const s=String(d==null?'':d),m=s.match(/(\d+)\s*years?/i);let y=0;
+  if(m)y=+m[1];else if(!/mon|day/i.test(s)){const a=tglKey(tgl),b=tglKey(tr);if(a&&b)y=Math.max(0,Math.floor((dMs(a)-dMs(b))/864e5/365));}
+  return y>=2?2:y>=1?1:0;
+}
+async function bacaGrade(f){
+  await muat(XLS,()=>window.XLSX);
+  const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});let rows=[],hi=-1;
+  for(const n of wb.SheetNames){rows=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null});hi=rows.findIndex(r=>r.indexOf('Kd. Order')>=0&&r.indexOf('Qty')>=0);if(hi>=0)break;}
+  if(hi<0)throw new Error(f.name+': kolom "Kd. Order" dan "Qty" tidak ditemukan. Pastikan ini file Detail Barang By Jenis Proses.');
+  const h=rows[hi],ix=n=>h.indexOf(n),ci=ix('Kd. Order'),qi=ix('Qty'),mi=ix('Material'),li=ix('Color'),pi=ix('Pcs'),di=ix('Duration'),ti=ix('Trans. Date'),bi=ix('Bun');
+  const title=String((rows[0]||[])[0]||'').replace(/\s+/g,' ').trim();
+  const name=title.replace(/^Detail Barang By Jenis Proses\s*/i,'').trim()||f.name.replace(/\.[^.]+$/,''),dm=name.match(/\((\d{2}-\d{2}-\d{4})\)/),tgl=dm?dm[1]:'';
+  const dt=v=>{if(typeof v==='number'){const o=XLSX.SSF.parse_date_code(v);return o?String(o.d).padStart(2,'0')+'-'+String(o.m).padStart(2,'0')+'-'+o.y:'';}return String(v==null?'':v).trim();};
+  const g={},cu={M:0,Y:0};let n=0;
+  rows.slice(hi+1).forEach(r=>{
+    const k=String(r[ci]==null?'':r[ci]).trim(),q=num(r[qi]),p=pi>=0?num(r[pi]):0;if(!k||(!q&&!p))return;
+    const m=String(mi>=0&&r[mi]!=null?r[mi]:'').trim(),c=String(li>=0&&r[li]!=null?r[li]:'').trim()||'-',d=dt(ti>=0?r[ti]:''),u=bi>=0?normU(r[bi]):'';
+    if(u)cu[u]++;
+    const b=bucketDur(di>=0?r[di]:'',tgl,d),key=m+'|'+k+'|'+c+'|'+b,x=g[key]||(g[key]={m:m,k:k,c:c,b:b,p:0,q:0,d:''});
+    x.p+=p;x.q+=q;if(tglKey(d)>tglKey(x.d))x.d=d;n++;
+  });
+  if(!n)throw new Error(f.name+': tidak ada baris data yang terbaca.');
+  return {id:'g'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),name:name,file:f.name,tgl:tgl,unit:cu.Y>cu.M?'Y':'M',rows:n,g:Object.keys(g).map(x=>g[x])};
+}
+async function tambahGrade(fs){
+  const out=[];
+  for(const f of fs){const nw=await bacaGrade(f),i=D.grd.findIndex(x=>x.name===nw.name);
+    if(i>=0){nw.id=D.grd[i].id;D.grd[i]=nw;}else D.grd.push(nw);
+    out.push(nw.name+(i>=0?' diperbarui: ':' ditambahkan: ')+fmt(nw.rows)+' baris, '+fmt(nw.g.length)+' kelompok.');}
+  return out.join(' ');
+}
+function gTot(s){const t=[0,0,0];s.g.forEach(x=>{t[x.b]+=x.q;});return {t:t,sum:t[0]+t[1]+t[2],p:s.g.reduce((a,x)=>a+x.p,0),kd:s.g.map(x=>x.k).filter((x,i,a)=>a.indexOf(x)===i).length};}
+function renderG(){
+  $('#cgrd').textContent=D.grd.length?' ('+D.grd.length+')':'';
+  $('#grdsrc').innerHTML=D.grd.length?'<p class="note">Stock grade terunggah:</p>'+D.grd.map((s,i)=>'<div class="sr"><span>'+esc(s.name)+'<small>'+uL(s.unit)+', '+fmt(s.rows)+' baris, file '+esc(s.file)+'</small></span><button class="btn" data-gdel="'+i+'">Hapus</button></div>').join(''):'<p class="note">Belum ada file stock grade. Tekan Upload stock grade dan pilih file Excel.</p>';
+  const q=$('#cari').value.trim().toUpperCase(),el=$('#grdlist');
+  if(gsel&&!D.grd.some(s=>s.id===gsel))gsel=null;
+  if(!gsel){
+    el.innerHTML=D.grd.length?D.grd.map(s=>{const T=gTot(s);return '<button class="by" data-gsel="'+esc(s.id)+'"><div class="oh"><b>'+esc(s.name)+'</b><span>'+fmt(T.sum)+' '+uS(s.unit)+'</span></div><div class="meta"><span>'+fmt(T.kd)+' Kd. Order</span><span>'+fmt(T.p)+' pcs</span></div><div class="gtags">'+[0,1,2].map(b=>'<span class="tg '+BC[b]+'">'+BS[b]+' '+fmt(T.t[b])+'</span>').join('')+'</div></button>';}).join(''):'<p class="note">Belum ada data stock grade. Unggah file Excel di menu Upload, bagian Stock grade.</p>';
+    schVis();return;}
+  const s=D.grd.find(x=>x.id===gsel),T=gTot(s),u=uS(s.unit),cmp=(a,b)=>a<b?-1:a>b?1:0;
+  let rs=s.g.slice().sort((a,b)=>(+a.m-+b.m)||cmp(a.m,b.m)||cmp(a.k,b.k)||cmp(a.c,b.c)||a.b-b.b);
+  if(q)rs=rs.filter(x=>(x.m+' '+x.k+' '+x.c).toUpperCase().indexOf(q)>=0);
+  const body=rs.map(x=>'<tr><td>'+esc(x.m)+'</td><td>'+esc(x.k)+'</td><td>'+esc(x.c)+'</td><td>'+fmt(x.p)+'</td><td>'+fmt(x.q)+'</td><td><span class="tg '+BC[x.b]+'">'+BS[x.b]+'</span></td><td class="nw">'+esc(String(x.d).replace(/^(\d\d-\d\d-)\d\d(\d\d)$/,'$1$2'))+'</td></tr>').join('');
+  el.innerHTML='<div class="gsh"><div class="dh"><button class="btn" data-gback="1" aria-label="Kembali ke daftar stock grade">Daftar grade</button><h2 class="bn">'+esc(s.name)+'</h2></div><div class="gtags"><span class="tg s0">Total '+fmt(T.sum)+' '+u+', '+fmt(T.p)+' pcs</span>'+[0,1,2].map(b=>'<span class="tg '+BC[b]+'">'+BS[b]+' '+fmt(T.t[b])+'</span>').join('')+'</div></div><div class="gcard"><div class="tx"><table><thead><tr><th>Material</th><th>Kd. Order</th><th>Color</th><th>Pcs</th><th>Qty ('+u+')</th><th>Duration</th><th>Trans. Date</th></tr></thead><tbody>'+(body||'<tr><td colspan="7">Tidak ada data yang cocok.</td></tr>')+'</tbody></table></div></div>';
+  schVis();setGh();
+}
+/*/G*/
 async function jalan(fn){try{msg('Membaca file...');const r=await fn();save();render();msg(r.t||r,r.w);}catch(e){msg(e.message||'Gagal membaca file.',1);}}
 $('#fpdf').addEventListener('change',e=>{const fs=[].slice.call(e.target.files);e.target.value='';if(!fs.length)return;
   jalan(async()=>{const out=[];let w=false;for(const f of fs){const r=await tambahPdf(f);out.push(r.t);w=w||r.w;}return {t:out.join(' '),w:w};});});
 $('#fxls').addEventListener('change',e=>{const f=e.target.files[0];e.target.value='';if(f)jalan(()=>hasilExcel(f));});
 $('#cari').addEventListener('input',render);
+$('#fgrd').addEventListener('change',e=>{const fs=[].slice.call(e.target.files);e.target.value='';if(fs.length)jalan(()=>tambahGrade(fs));});
+$('#grdsrc').addEventListener('click',e=>{const b=e.target.closest('[data-gdel]');if(!b)return;const s=D.grd[+b.dataset.gdel];
+  if(s&&confirm('Hapus stock grade '+s.name+'?')){D.grd.splice(+b.dataset.gdel,1);if(gsel===s.id)gsel=null;save();render();msg('Stock grade dihapus.');}});
+$('#grdlist').addEventListener('click',e=>{const a=e.target.closest('[data-gsel]');if(a){gsel=a.dataset.gsel;render();window.scrollTo(0,0);return;}
+  if(e.target.closest('[data-gback]')){gsel=null;$('#cari').value='';render();window.scrollTo(0,0);}});
 document.querySelector('.wrap').addEventListener('click',e=>{
   if(e.target.closest('[data-copyunk]')){
     const t=unk($('#cari').value.trim().toUpperCase()).map(x=>x.c+'\t'+['M','Y'].filter(u=>x[u]>0).map(u=>fmt(x[u])+' '+uS(u)).join(' + ')).join('\n');
@@ -355,7 +442,7 @@ function impor(txt){
   if(!o||!Array.isArray(o.orders)){msg('Ini bukan cadangan Cek Order.',1);return;}
   const sr=o.src||(o.recv&&o.info?[{id:'s-'+o.info.file,file:o.info.file,tgl:o.info.tgl,rows:o.info.rows,unit:'M',recv:o.recv}]:[]);
   if((D.orders.length||D.src.length)&&!confirm('Ganti semua data di aplikasi ini ('+D.orders.length+' order, '+D.src.length+' file hasil) dengan isi cadangan ('+o.orders.length+' order, '+sr.length+' file hasil)?')){msg('Dibatalkan. Data tidak berubah.');return;}
-  D.orders=o.orders;D.src=sr;
+  D.orders=o.orders;D.src=sr;if(Array.isArray(o.grd))D.grd=o.grd;
   mig();save();render();msg('Cadangan diimpor: '+o.orders.length+' order.');
 }
 document.querySelector('details.bk').addEventListener('click',e=>{
@@ -369,6 +456,6 @@ $('#fbk').addEventListener('change',e=>{const f=e.target.files[0];e.target.value
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
 render();setSub('pdf');setTab(D.orders.length||D.src.length?'stk':'up');
 document.querySelector('.seg').addEventListener('click',e=>{const b=e.target.closest('[data-sub]');if(b)setSub(b.dataset.sub);});
-document.querySelector('.nav').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){if(b.dataset.tab==='stk'&&b.getAttribute('aria-current')==='true'&&buyer){buyer=null;render();}setTab(b.dataset.tab);}});
+document.querySelector('.nav').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){if(b.dataset.tab==='grd'&&b.getAttribute('aria-current')==='true'&&gsel){gsel=null;render();}if(b.dataset.tab==='stk'&&b.getAttribute('aria-current')==='true'&&buyer){buyer=null;render();}setTab(b.dataset.tab);}});
 if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
 </script></body></html>
