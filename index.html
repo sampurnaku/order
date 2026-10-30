@@ -258,6 +258,13 @@ const YD=0.9144,uL=u=>u==='Y'?'yard':'meter',uS=u=>u==='Y'?'yd':'m';
 const normU=v=>{const u=String(v==null?'':v).trim().toUpperCase();return /^(Y|YD|YDS|YARD|YARDS)$/.test(u)?'Y':/^(M|MTR|METER|METERS)$/.test(u)?'M':'';};
 const conv=(x,a,b)=>a===b?x:(a==='Y'?x*YD:x/YD);
 function ambil(code,u){const r={t:0,g:{},p:0,d:''};D.src.forEach(s=>{const v=s.recv[code];if(!v)return;if(tglKey(v.d)>tglKey(r.d))r.d=v.d;r.p+=v.p||0;r.t+=conv(v.t,s.unit,u);Object.keys(v.g).forEach(k=>r.g[k]=(r.g[k]||0)+conv(v.g[k],s.unit,u));if(v.k){r.k=r.k||{L:0,R:0,X:0};['L','R','X'].forEach(z=>r.k[z]+=conv(v.k[z]||0,s.unit,u));}});return r;}
+const tUp=ms=>{if(!ms)return '';const d=new Date(ms),p=n=>String(n).padStart(2,'0');return p(d.getDate())+'-'+p(d.getMonth()+1)+'-'+d.getFullYear()+' '+p(d.getHours())+':'+p(d.getMinutes());};
+function upNote(){
+  if(!D.src.length)return '';
+  const ts=D.src.map(s=>s.up||0).filter(Boolean);
+  if(!ts.length)return '<p class="note">Waktu unggah belum tercatat. Unggah ulang file Excel hasil untuk mencatatnya.</p>';
+  return '<p class="note">Data hasil diunggah terakhir '+tUp(Math.max.apply(null,ts))+(D.src.length>1?' (dari '+D.src.length+' file, waktu tiap file ada di menu Upload)':'')+'.</p>';
+}
 async function bacaExcel(f){
   await muat(XLS,()=>window.XLSX);
   const wb=XLSX.read(await f.arrayBuffer(),{type:'array'});
@@ -270,7 +277,7 @@ async function bacaExcel(f){
   const unit=cu.Y>cu.M?'Y':'M';
   data.forEach(d=>{const q=conv(d.q,d.u||unit,unit),x=recv[d.c]||(recv[d.c]={t:0,g:{}});x.t+=q;x.g[d.g]=(x.g[d.g]||0)+q;if(d.m&&!x.m)x.m=d.m;x.p=(x.p||0)+d.p;if(tglKey(d.d)>tglKey(x.d))x.d=d.d;if(d.k){x.k=x.k||{L:0,R:0,X:0};x.k[d.k]+=q;}});
   const dm=String((rows[0]||[])[0]||'').match(/\((\d{2}-\d{2}-\d{4})\)/);
-  return {id:'s'+Date.now().toString(36),file:f.name,tgl:dm?dm[1]:'',rows:data.length,unit:unit,recv:recv,
+  return {id:'s'+Date.now().toString(36),file:f.name,up:Date.now(),tgl:dm?dm[1]:'',rows:data.length,unit:unit,recv:recv,
     note:(ki<0?' Kolom "Doc Reff" tidak ditemukan, status sudah cek / belum cek tidak terisi.':'')+(!cu.M&&!cu.Y?' Satuan di file tidak terbaca, dianggap meter.':'')+(cu.M&&cu.Y?' File berisi dua satuan, semuanya diubah ke '+uL(unit)+'.':'')};
 }
 function tanya(nw){
@@ -409,20 +416,20 @@ function render(){
   $('#cpdf').textContent=D.orders.length?' ('+D.orders.length+')':'';$('#cxls').textContent=D.src.length?' ('+D.src.length+')':'';
   const q=$('#cari').value.trim().toUpperCase(),cnt={};
   D.orders.forEach(o=>o.rows.forEach(r=>cnt[r.code]=(cnt[r.code]||0)+1));
-  $('#src').innerHTML=D.src.length?'<p class="note">Sumber hasil, jumlahnya dijumlahkan:</p>'+D.src.map((s,i)=>'<div class="sr"><span>'+esc(s.file)+'<small>'+uL(s.unit)+', data per '+esc(s.tgl||'tanggal tidak terbaca')+', '+fmt(s.rows)+' baris</small></span><button class="btn" data-dsrc="'+i+'">Hapus</button></div>').join(''):'<p class="note">Belum ada file hasil. Unggah Excel untuk mengisi jumlah yang sudah didapat.</p>';
+  $('#src').innerHTML=D.src.length?'<p class="note">Sumber hasil, jumlahnya dijumlahkan:</p>'+D.src.map((s,i)=>'<div class="sr"><span>'+esc(s.file)+'<small>'+uL(s.unit)+', data per '+esc(s.tgl||'tanggal tidak terbaca')+', '+fmt(s.rows)+' baris'+(s.up?', diunggah '+tUp(s.up):', waktu unggah belum tercatat')+'</small></span><button class="btn" data-dsrc="'+i+'">Hapus</button></div>').join(''):'<p class="note">Belum ada file hasil. Unggah Excel untuk mengisi jumlah yang sudah didapat.</p>';
   const cn=D.src.length?D.orders.filter(o=>prog(o).tg===0).length:0;
   $('#orders').innerHTML=D.orders.length?'<p class="note">Order terdaftar:</p>'+(cn?'<p class="note">'+cn+' order tidak punya stock di data hasil, bisa dipertimbangkan untuk dihapus.</p>':'')+D.orders.map((o,i)=>{const ns=D.src.length&&prog(o).tg===0,dn=oDone(o);return '<div class="sr"><span>O.P '+esc(o.op||o.id)+(dn?' (close)':'')+'<small>'+esc(bNama(o))+', '+o.rows.length+' kode, file '+esc(o.file||'')+'</small>'+(ns?'<span class="tg s1">Tidak ada stock di data hasil</span> ':'')+(o.gab&&o.gab.length?'<span class="tg s1">Kirim gabung</span> ':'')+(dn?'<span class="tg s2">Semua warna close</span>':'')+'</span>'+(ns?'<button class="btn" data-del="'+i+'">Hapus</button>':'')+'</div>';}).join(''):'<p class="note">Belum ada order. Tekan Tambah order (PDF) dan pilih Instruction Sheet.</p>';
   $('#unklist').innerHTML=D.src.length?unkHtml(q):'<p class="note">Belum ada file hasil. Unggah Excel di menu Upload untuk melihat kode yang belum punya Instruction Sheet.</p>';
   const nu=D.src.length?unk('').length:0;$('#nbadge').innerHTML=nu?'<span class="bd">'+nu+'</span>':'';
   if(!D.orders.length){$('#list').innerHTML='<p class="note">Belum ada order. Tambahkan PDF Instruction Sheet di menu Upload.</p>';return;}
   if(buyer&&!D.orders.some(o=>bKey(o)===buyer))buyer=null;
-  if(!buyer){$('#list').innerHTML=buyerList(q);return;}
+  if(!buyer){$('#list').innerHTML=upNote()+buyerList(q);return;}
   const act=[],dn=[];
   D.orders.forEach((o,i)=>{if(bKey(o)!==buyer)return;const h=card(o,i,cnt,q,false);if(h)(oDone(o)?dn:act).push(h);});
   let html='<div class="dh"><button class="btn" data-back="1" aria-label="Kembali ke daftar buyer">Daftar buyer</button><h2 class="bn">'+esc(bNama(D.orders.find(o=>bKey(o)===buyer)))+'</h2></div>'+act.join('');
   if(!act.length)html+='<p class="note">'+(q&&!dn.length?'Tidak ada kode yang cocok.':q?'':'Semua order buyer ini sudah close.')+'</p>';
   if(dn.length)html+='<details class="done"'+(q?' open':'')+'><summary>Order close ('+dn.length+')</summary>'+dn.join('')+'</details>';
-  $('#list').innerHTML=html;setSh();
+  $('#list').innerHTML=upNote()+html;setSh();
 }
 
 /*G*/
@@ -452,7 +459,7 @@ async function bacaGrade(f){
     R.push([sx(si>=0?cv(r[si]):''),sx(d),sx(ki>=0?cv(r[ki]):''),sx(gi>=0?cv(r[gi]):''),sx(k),sx(mi>=0?cv(r[mi]):''),sx((li>=0?cv(r[li]):'')||'-'),sx(lt>=0?cv(r[lt]):''),sx(di>=0?cv(r[di]):''),sx(bi>=0?cv(r[bi]):''),p,q,bucketDur(di>=0?r[di]:'',tgl,d)]);
   });
   if(!R.length)throw new Error(f.name+': tidak ada baris data yang terbaca.');
-  return {id:'g'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),name:name,file:f.name,tgl:tgl,unit:cu.Y>cu.M?'Y':'M',rows:R.length,S:S,r:R};
+  return {id:'g'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),name:name,file:f.name,up:Date.now(),tgl:tgl,unit:cu.Y>cu.M?'Y':'M',rows:R.length,S:S,r:R};
 }
 /* jenis stock grade = judul tanpa tanggal, mis. "ZB STOCK 58"; jenis yang sama diganti, bukan ditambah */
 const gKey=n=>String(n||'').replace(/\(\s*\d{2}-\d{2}-\d{4}\s*\)/g,'').replace(/\s+/g,' ').trim().toUpperCase();
@@ -496,25 +503,25 @@ function gApply(){const g=n=>document.querySelector('#gflt [data-f='+n+']').valu
   GF={sb:g('sb'),dr:g('dr'),kd:g('kd'),m:g('m'),gr:g('gr'),c:g('c'),lot:g('lot'),du:document.querySelector('#gflt [data-f=du]').value,from:dk('from'),to:dk('to')};render();}
 function renderG(){
   $('#cgrd').textContent=D.grd.length?' ('+D.grd.length+')':'';
-  $('#grdsrc').innerHTML=D.grd.length?'<p class="note">Stock grade terunggah:</p>'+D.grd.map((s,i)=>'<div class="sr"><span>'+esc(s.name)+'<small>'+uL(s.unit)+', '+fmt(s.rows||0)+' baris, file '+esc(s.file)+(s.r?'':'. Format lama, unggah ulang file ini supaya pencarian semua kolom dan detail bisa dipakai')+'</small></span><button class="btn" data-gdel="'+i+'">Hapus</button></div>').join(''):'<p class="note">Belum ada file stock grade. Tekan Upload stock grade dan pilih file Excel.</p>';
+  $('#grdsrc').innerHTML=D.grd.length?'<p class="note">Stock grade terunggah:</p>'+D.grd.map((s,i)=>'<div class="sr"><span>'+esc(s.name)+'<small>'+uL(s.unit)+', '+fmt(s.rows||0)+' baris, file '+esc(s.file)+(s.up?', diunggah '+tUp(s.up):', waktu unggah belum tercatat')+(s.r?'':'. Format lama, unggah ulang file ini supaya pencarian semua kolom dan detail bisa dipakai')+'</small></span><button class="btn" data-gdel="'+i+'">Hapus</button></div>').join(''):'<p class="note">Belum ada file stock grade. Tekan Upload stock grade dan pilih file Excel.</p>';
   const q=gQ(),tk=qTok(q),el=$('#grdlist'),ft=s=>gRows(s).filter(o=>gF(o)&&(!tk.length||gHit(o,tk)));
   gradeOpts();
   if(gsel&&!D.grd.some(s=>s.id===gsel))gsel=null;
   if(!gsel){
     gd=null;
-    const cards=D.grd.map(s=>{const rs=ft(s);if(!rs.length)return '';const T=gTot(rs);return '<button class="by" data-gsel="'+esc(s.id)+'"><div class="oh"><b>'+esc(s.name)+'</b><span>'+fmt(T.sum)+' '+uS(s.unit)+'</span></div><div class="meta"><span>'+fmt(T.kd)+' Kd. Order</span><span>'+fmt(T.p)+' pcs</span>'+(tk.length?'<span>'+fmt(rs.length)+' baris cocok</span>':'')+'</div><div class="gtags">'+[0,1,2].map(b=>'<span class="tg '+BC[b]+'">'+BS[b]+' '+fmt(T.t[b])+'</span>').join('')+'</div></button>';}).join('');
+    const cards=D.grd.map(s=>{const rs=ft(s);if(!rs.length)return '';const T=gTot(rs);return '<button class="by" data-gsel="'+esc(s.id)+'"><div class="oh"><b>'+esc(s.name)+'</b><span>'+fmt(T.sum)+' '+uS(s.unit)+'</span></div><div class="meta"><span>'+fmt(T.kd)+' Kd. Order</span><span>'+fmt(T.p)+' pcs</span>'+(s.up?'<span>Diunggah '+tUp(s.up)+'</span>':'')+(tk.length?'<span>'+fmt(rs.length)+' baris cocok</span>':'')+'</div><div class="gtags">'+[0,1,2].map(b=>'<span class="tg '+BC[b]+'">'+BS[b]+' '+fmt(T.t[b])+'</span>').join('')+'</div></button>';}).join('');
     el.innerHTML=cards||'<p class="note">'+(D.grd.length?'Tidak ada data yang cocok.':'Belum ada data stock grade. Unggah file Excel di menu Upload, bagian Stock grade.')+'</p>';
     schVis();return;}
   const s=D.grd.find(x=>x.id===gsel),u=uS(s.unit),cmp=(a,b)=>a<b?-1:a>b?1:0,rs=ft(s);
   if(gd){
     const dr=rs.filter(o=>o.m===gd.m&&o.k===gd.k&&o.c===gd.c&&o.b===gd.b).sort((a,b)=>a.f[0].localeCompare(b.f[0],undefined,{numeric:true})||tglKey(a.f[1])-tglKey(b.f[1])||cmp(a.f[2],b.f[2])),T=gTot(dr),pc=dr.reduce((a,o)=>a+o.p,0);
     const body=dr.map(o=>'<tr><td>'+esc(o.f[0])+'</td><td>'+esc(o.f[2])+'<small>Grade '+esc(o.f[3])+' · '+esc(o.f[1])+'</small>'+(o.f[7]?'<small>Lot '+esc(o.f[7])+'</small>':'')+(o.f[8]?'<small>'+esc(o.f[8])+'</small>':'')+'</td><td>'+esc(o.f[4])+'</td><td>'+esc(o.f[5])+'</td><td>'+esc(o.f[6])+'</td><td class="nw">'+esc(o.bn)+'</td><td>'+fmt(o.p)+'</td><td>'+fmt(o.q)+'</td></tr>').join('');
-    el.innerHTML='<div class="gsh"><div class="dh"><button class="btn" data-gdback="1" aria-label="Kembali ke daftar material">Kembali</button><h2 class="bn">Material '+esc(gd.m)+'</h2></div><div class="gtags"><span class="tg s0">'+esc(s.name)+'</span><span class="tg s0">Kd. Order '+esc(gd.k)+'</span><span class="tg s0">Color '+esc(gd.c)+'</span><span class="tg '+BC[gd.b]+'">'+BS[gd.b]+'</span><span class="tg s0">'+fmt(dr.length)+' baris: '+fmt(pc)+' pcs, '+fmt(T.sum)+' '+u+'</span></div></div><div class="gcard d"><div class="tx"><table><thead><tr><th>S.bin</th><th>Doc Reff</th><th>Kd. Order</th><th>Material</th><th>Color</th><th>Bun</th><th>Pcs</th><th>Qty ('+u+')</th></tr></thead><tbody>'+(body||'<tr><td colspan="8">'+(rs.length||!q?'Tidak ada data yang cocok.':'Tidak ada data yang cocok dengan pencarian.')+'</td></tr>')+'</tbody></table></div></div>';
+    el.innerHTML='<div class="gsh"><div class="dh"><button class="btn" data-gdback="1" aria-label="Kembali ke daftar material">Kembali</button><h2 class="bn">Material '+esc(gd.m)+'</h2></div><div class="gtags"><span class="tg s0">'+esc(s.name)+(s.up?', diunggah '+tUp(s.up):'')+'</span><span class="tg s0">Kd. Order '+esc(gd.k)+'</span><span class="tg s0">Color '+esc(gd.c)+'</span><span class="tg '+BC[gd.b]+'">'+BS[gd.b]+'</span><span class="tg s0">'+fmt(dr.length)+' baris: '+fmt(pc)+' pcs, '+fmt(T.sum)+' '+u+'</span></div></div><div class="gcard d"><div class="tx"><table><thead><tr><th>S.bin</th><th>Doc Reff</th><th>Kd. Order</th><th>Material</th><th>Color</th><th>Bun</th><th>Pcs</th><th>Qty ('+u+')</th></tr></thead><tbody>'+(body||'<tr><td colspan="8">'+(rs.length||!q?'Tidak ada data yang cocok.':'Tidak ada data yang cocok dengan pencarian.')+'</td></tr>')+'</tbody></table></div></div>';
     schVis();setGh();return;}
   gA=gAgg(rs).sort((a,b)=>(+a.m-+b.m)||cmp(a.m,b.m)||cmp(a.k,b.k)||cmp(a.c,b.c)||a.b-b.b);
   const F={p:0,q:0,t:[0,0,0]};rs.forEach(x=>{F.p+=x.p;F.q+=x.q;F.t[x.b]+=x.q;});
   const body=gA.map((x,i)=>'<tr><td>'+(x.lg?esc(x.m):'<div class="mr"><span>'+esc(x.m)+'</span><button class="dbtn" data-gm="'+i+'" aria-label="Detail material '+esc(x.m)+'">Detail ›</button></div><small>'+fmt(x.n)+' baris</small>')+'</td><td>'+esc(x.k)+'</td><td>'+esc(x.c)+'</td><td>'+fmt(x.p)+'</td><td>'+fmt(x.q)+'</td><td><span class="tg '+BC[x.b]+'">'+BS[x.b]+'</span></td><td class="nw">'+esc(String(x.d).replace(/^(\d\d-\d\d-)\d\d(\d\d)$/,'$1$2'))+'</td></tr>').join('');
-  el.innerHTML='<div class="gsh"><div class="dh"><button class="btn" data-gback="1" aria-label="Kembali ke daftar stock grade">Daftar grade</button><h2 class="bn">'+esc(s.name)+'</h2></div><div class="gtags"><span class="tg s0">'+(q||tk.length?'Hasil cari, '+fmt(rs.length)+' baris: ':'Total: ')+fmt(F.p)+' pcs, '+fmt(F.q)+' '+u+'</span>'+[0,1,2].map(b=>'<span class="tg '+BC[b]+'">'+BS[b]+' '+fmt(F.t[b])+'</span>').join('')+'</div>'+(s.r?'':'<p class="note">Format lama: unggah ulang file ini untuk pencarian semua kolom dan detail per material.</p>')+'</div><div class="gcard"><div class="tx"><table><thead><tr><th>Material</th><th>Kd. Order</th><th>Color</th><th>Pcs</th><th>Qty ('+u+')</th><th>Duration</th><th>Trans. Date</th></tr></thead><tbody>'+(body||'<tr><td colspan="7">Tidak ada data yang cocok.</td></tr>')+'</tbody></table></div></div>';
+  el.innerHTML='<div class="gsh"><div class="dh"><button class="btn" data-gback="1" aria-label="Kembali ke daftar stock grade">Daftar grade</button><h2 class="bn">'+esc(s.name)+'</h2></div><div class="gtags"><span class="tg s0">'+(q||tk.length?'Hasil cari, '+fmt(rs.length)+' baris: ':'Total: ')+fmt(F.p)+' pcs, '+fmt(F.q)+' '+u+'</span>'+[0,1,2].map(b=>'<span class="tg '+BC[b]+'">'+BS[b]+' '+fmt(F.t[b])+'</span>').join('')+(s.up?'<span class="tg s0">Diunggah '+tUp(s.up)+'</span>':'')+'</div>'+(s.r?'':'<p class="note">Format lama: unggah ulang file ini untuk pencarian semua kolom dan detail per material.</p>')+'</div><div class="gcard"><div class="tx"><table><thead><tr><th>Material</th><th>Kd. Order</th><th>Color</th><th>Pcs</th><th>Qty ('+u+')</th><th>Duration</th><th>Trans. Date</th></tr></thead><tbody>'+(body||'<tr><td colspan="7">Tidak ada data yang cocok.</td></tr>')+'</tbody></table></div></div>';
   schVis();setGh();
 }
 /*/G*/
