@@ -120,7 +120,7 @@ tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-to
 </div>
 <div id="u-grd" hidden>
 <div class="bar"><label class="btn p">Upload stock grade (Excel)<input type="file" id="fgrd" accept=".xlsx,.xls" multiple hidden></label></div>
-<p class="note">Pilih satu atau beberapa file Detail Barang By Jenis Proses untuk stock grade, misalnya ZB STOCK atau BS ZB. Nama di daftar mengikuti judul di dalam file Excel. Judul yang sama diperbarui, judul baru ditambahkan.</p>
+<p class="note">Pilih satu atau beberapa file Detail Barang By Jenis Proses untuk stock grade, misalnya ZB STOCK atau BS ZB. Nama di daftar mengikuti judul di dalam file Excel. Jenis yang sama (misalnya ZB STOCK 58) diganti dengan file terbaru, jenis baru ditambahkan.</p>
 <div id="grdsrc"></div>
 </div>
 <details class="bk"><summary>Cadangan data</summary>
@@ -454,11 +454,20 @@ async function bacaGrade(f){
   if(!R.length)throw new Error(f.name+': tidak ada baris data yang terbaca.');
   return {id:'g'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),name:name,file:f.name,tgl:tgl,unit:cu.Y>cu.M?'Y':'M',rows:R.length,S:S,r:R};
 }
+/* jenis stock grade = judul tanpa tanggal, mis. "ZB STOCK 58"; jenis yang sama diganti, bukan ditambah */
+const gKey=n=>String(n||'').replace(/\(\s*\d{2}-\d{2}-\d{4}\s*\)/g,'').replace(/\s+/g,' ').trim().toUpperCase();
 async function tambahGrade(fs){
   const out=[];
-  for(const f of fs){const nw=await bacaGrade(f),i=D.grd.findIndex(x=>x.name===nw.name);
-    if(i>=0){nw.id=D.grd[i].id;D.grd[i]=nw;}else D.grd.push(nw);
-    out.push(nw.name+(i>=0?' diperbarui: ':' ditambahkan: ')+fmt(nw.rows)+' baris.');}
+  for(const f of fs){
+    const nw=await bacaGrade(f),k=gKey(nw.name),ada=D.grd.filter(x=>gKey(x.name)===k);
+    if(ada.length){
+      const lama=ada.slice().sort((a,b)=>tglKey(b.tgl)-tglKey(a.tgl))[0];
+      if(tglKey(nw.tgl)&&tglKey(nw.tgl)<tglKey(lama.tgl)&&!confirm(nw.name+' lebih lama dari data yang ada ('+lama.name+'). Tetap diganti?')){out.push(nw.name+' dilewati.');continue;}
+      const at=D.grd.findIndex(x=>gKey(x.name)===k);nw.id=D.grd[at].id;
+      D.grd=D.grd.filter(x=>gKey(x.name)!==k);D.grd.splice(Math.min(at,D.grd.length),0,nw);
+      out.push(nw.name+' mengganti '+(ada.length>1?ada.length+' data lama':ada[0].name)+': '+fmt(nw.rows)+' baris.');
+    }else{D.grd.push(nw);out.push(nw.name+' ditambahkan: '+fmt(nw.rows)+' baris.');}
+  }
   return out.join(' ');
 }
 /* baris mentah per file; urutan kolom f: S.bin, Trans. Date, Doc Reff, Grade, Kd. Order, Material, Color, Lot, Duration */
