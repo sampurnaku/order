@@ -593,7 +593,7 @@ const nCmp=(a,b)=>String(a).localeCompare(String(b),undefined,{numeric:true});
 function pdfPacking(P){
   const PW=595.28,PH=841.89,M=28,tw=PW-2*M,fs=7.5,lh=11.5,pad=4;
   /* lebar kolom: NO, DESIGN NO., LBR, CLR, PIECE LENGTH, TOTAL */
-  const cw=[22,118,28,28,0,108];cw[4]=tw-cw[0]-cw[1]-cw[2]-cw[3]-cw[5];
+  const cw=[22,108,28,56,0,106];cw[4]=tw-cw[0]-cw[1]-cw[2]-cw[3]-cw[5];
   const cx=[M];cw.forEach((w,i)=>cx.push(cx[i]+w));
   const PER=10,pieceW=(cw[4]-2*pad)/PER;
   const pages=[];let cur,y;
@@ -621,12 +621,12 @@ function pdfPacking(P){
     ensure(lh*3+2*pad);
     ctr(String(gi+1),1,fs,cx[0],cx[1],y-pad-fs);
     g.rows.forEach(r=>{
-      const nl=Math.max(1,Math.ceil(r.pcs.length/PER));let done=0,firstChunk=true;
+      const dl=pwrap(r.design,cw[1]-2*pad,fs,8),cl=pwrap(r.clr,cw[3]-2*pad,fs,8),bl=pwrap(r.lbr,cw[2]-2*pad,fs,8),nl=Math.max(1,Math.ceil(r.pcs.length/PER),dl.length,cl.length,bl.length);let done=0,firstChunk=true;
       while(done<nl){
         let av=Math.floor((y-M-FOOT-2*pad)/lh);
         if(av<Math.min(nl-done,3)){brk();av=Math.floor((y-M-FOOT-2*pad)/lh);}
         const k=Math.min(nl-done,av),top=y;
-        T(r.design,1,fs,cx[1]+pad,top-pad-fs);ctr(r.lbr,1,fs,cx[2],cx[3],top-pad-fs);ctr(r.clr,1,fs,cx[3],cx[4],top-pad-fs);
+        dl.slice(done,done+k).forEach((t,i)=>T(t,1,fs,cx[1]+pad,top-pad-fs-i*lh));bl.slice(done,done+k).forEach((t,i)=>ctr(t,1,fs,cx[2],cx[3],top-pad-fs-i*lh));cl.slice(done,done+k).forEach((t,i)=>ctr(t,1,fs,cx[3],cx[4],top-pad-fs-i*lh));
         r.pcs.slice(done*PER,(done+k)*PER).forEach((v,i)=>T(v,1,fs,cx[4]+pad+(i%PER)*pieceW,top-pad-fs-Math.floor(i/PER)*lh));
         if(firstChunk)rt(nf2(r.q)+' '+r.u+' = '+fmt(r.pcs.length)+' Roll',1,fs,cx[6]-pad,top-pad-fs);
         else rt('(lanjutan)',1,fs,cx[6]-pad,top-pad-fs);
@@ -646,7 +646,7 @@ function pdfPacking(P){
     rt(nf2(t.q)+' '+t.u+' = '+fmt(t.n)+' Roll',2,8,PW-M-pad,y-12);y-=h;L(M,y,PW-M,y);});
   y-=18;
   /* daftar S.bin */
-  ensure(30);T('List Karton :',2,9,M+14,y-9);y-=24;
+  if(P.sbin.length){ensure(30);T('List Karton :',2,9,M+14,y-9);y-=24;}
   const items=P.sbin.map((s,i)=>(i+1)+'. '+s);
   const colW=Math.max(100,...items.map(t=>pw(pdfSan(t),9)+30)),nc=Math.max(1,Math.floor((tw-14)/colW));
   for(let i=0;i<items.length;i+=nc){ensure(16);items.slice(i,i+nc).forEach((t,j)=>T(t,1,9,M+14+j*colW,y-9));y-=16;}
@@ -679,7 +679,7 @@ function pdfPacking(P){
   return new Blob([Uint8Array.from(out,c=>c.charCodeAt(0))],{type:'application/pdf'});
 }
 /* data packing list: baris stock grade yang sedang dicari, dikelompokkan per S.bin lalu per Kd. Order / Material / Design / Lebar / Color */
-function dataPacking(){
+function dataPacking(mode){
   const a=$('#cari').value.trim().toUpperCase(),tk=qTok(a),files=gsel?D.grd.filter(s=>s.id===gsel):D.grd;
   const G={},grades={},uni={},sb={};let n=0;
   files.forEach(s=>{
@@ -687,7 +687,7 @@ function dataPacking(){
     if(gsel&&gd)rs=rs.filter(o=>o.m===gd.m&&o.k===gd.k&&o.c===gd.c&&o.b===gd.b);
     const u=/^Y/i.test(s.unit)?'YARDS':'METER',wd=(String(s.name).match(/\b(\d{2,3})\b(?!\s*\()/)||[])[1]||'';
     rs.forEach(o=>{
-      const gk=(files.length>1?s.id+'|':'')+(o.f[2]||'-'),g=G[gk]||(G[gk]={sb:o.f[2]||'-',u:u,rows:{},q:0,n:0}),
+      const gk=(files.length>1?s.id+'|':'')+(mode==='warna'?'ALL':(o.f[2]||'-')),g=G[gk]||(G[gk]={sb:o.f[2]||'-',u:u,rows:{},q:0,n:0}),
         lb=o.lb||wd,dg=o.dg||'-',rk=[o.k,o.m,dg,lb,o.c].join('|'),r=g.rows[rk]||(g.rows[rk]={k:o.k,m:o.m,c:o.c,lbr:lb,clr:o.c,design:o.k+' / '+o.m+' / '+dg,pcs:[],q:0,u:u});
       const p=Math.max(0,Math.round(o.p)),q=o.q;
       if(p>0){const e=Math.round(q/p*100)/100;let rest=q;for(let i=0;i<p;i++){const v=i===p-1?Math.round(rest*100)/100:e;r.pcs.push(v);rest-=e;}}
@@ -702,9 +702,11 @@ function dataPacking(){
   const groups=Object.keys(G).sort((x,y)=>nCmp(G[x].sb,G[y].sb)).map(k=>{const g=G[k];
     g.rows=Object.keys(g.rows).map(x=>g.rows[x]).sort((x,y)=>nCmp(x.k,y.k)||nCmp(x.m,y.m)||nCmp(x.c,y.c));
     g.n=0;g.rows.forEach(r=>{g.n+=r.pcs.length;uni[g.u].n+=r.pcs.length;r.pcs=r.pcs.map(v=>v.toFixed(2));});return g;});
+  if(mode==='warna'){const fl=[];groups.forEach(g=>g.rows.forEach(r=>fl.push({sb:'',u:g.u,rows:[r],q:r.q,n:r.pcs.length})));
+    fl.sort((x,y)=>nCmp(x.rows[0].clr,y.rows[0].clr)||nCmp(x.rows[0].k,y.rows[0].k)||nCmp(x.rows[0].m,y.rows[0].m));groups.length=0;fl.forEach(g=>groups.push(g));}
   const d=new Date(),p2=x=>String(x).padStart(2,'0'),h12=d.getHours()%12||12;
   const gl=Object.keys(grades).sort((x,y)=>nCmp(y,x));
-  return {n:n,nama:'packing-list_stock-grade_'+(gsel?nmFile(files[0].name)+'_':'')+stamp(),groups:groups,tot:Object.keys(uni).map(u=>uni[u]),sbin:groups.map(g=>g.sb).filter((v,i,x)=>x.indexOf(v)===i),
+  return {n:n,nama:(mode==='warna'?'packing-list-per-warna_stock-grade_':'packing-list_stock-grade_')+(gsel?nmFile(files[0].name)+'_':'')+stamp(),groups:groups,tot:Object.keys(uni).map(u=>uni[u]),sbin:mode==='warna'?[]:groups.map(g=>g.sb).filter((v,i,x)=>x.indexOf(v)===i),
     grade:gl.join(', ')||'-',tanggal:p2(d.getDate())+'-'+p2(d.getMonth()+1)+'-'+d.getFullYear(),
     cetak:p2(d.getDate())+'-'+p2(d.getMonth()+1)+'-'+d.getFullYear()+' '+p2(h12)+':'+p2(d.getMinutes())+':'+p2(d.getSeconds())+' '+(d.getHours()<12?'AM':'PM')};
 }
@@ -717,7 +719,7 @@ async function xlsBuat(lembar,nama){
 }
 const r1=x=>Math.round(x*10)/10,tgl8=k=>{k=String(k||'');return k.length===8?k.slice(6)+'-'+k.slice(4,6)+'-'+k.slice(0,4):'';},stamp=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes());};
 const nmFile=s=>String(s).replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40);
-function xpBar(s){return '<div class="bar xp"><button class="btn" data-xp="xls" data-xs="'+s+'">Unduh Excel</button><button class="btn" data-xp="pdf" data-xs="'+s+'">Unduh PDF</button></div><p class="note">Isi file mengikuti pencarian yang sedang dipakai.</p>';}
+function xpBar(s){return '<div class="bar xp"><button class="btn" data-xp="xls" data-xs="'+s+'">Unduh Excel</button><button class="btn" data-xp="pdf" data-xs="'+s+'">Unduh PDF</button>'+(s==='grd'?'<button class="btn" data-xp="pdfw" data-xs="grd">Unduh PDF per warna</button>':'')+'</div><p class="note">Isi file mengikuti pencarian yang sedang dipakai.</p>';}
 function dataFresh(){
   const q=$('#cari').value.trim().toUpperCase(),B=[],tot={};
   D.orders.forEach(o=>{
@@ -792,12 +794,12 @@ $('#src').addEventListener('click',e=>{if(e.target.closest('[data-goto]')){const
   if(s&&confirm('Hapus file hasil '+s.file+'? Jumlah dari file ini tidak lagi dihitung.')){D.src.splice(+b.dataset.dsrc,1);save();render();msg('File hasil dihapus.');}});
 document.querySelector('.wrap').addEventListener('click',async e=>{
   const b=e.target.closest('[data-xp]');if(!b)return;
-  const pdf=b.dataset.xp==='pdf';
+  const pdfw=b.dataset.xp==='pdfw',pdf=b.dataset.xp==='pdf'||pdfw;
   try{
     const x=b.dataset.xs==='stk'?dataFresh():dataGrade();
     if(!x.n){msg('Tidak ada data untuk diunduh. Ubah pencarian atau filter dulu.',1);return;}
     msg('Menyiapkan '+(pdf?'PDF':'Excel')+'...');
-    if(pdf&&b.dataset.xs==='grd'){const pk=dataPacking();if(!pk.groups.length){msg('Tidak ada data untuk diunduh. Ubah pencarian atau filter dulu.',1);return;}unduhBlob(pdfPacking(pk),pk.nama+'.pdf');msg('PDF Detail Packing List diunduh: '+pk.groups.reduce((a,g)=>a+g.n,0)+' roll. Nama file '+pk.nama+'.pdf.');return;}
+    if(pdf&&b.dataset.xs==='grd'){const pk=dataPacking(pdfw?'warna':'');if(!pk.groups.length){msg('Tidak ada data untuk diunduh. Ubah pencarian atau filter dulu.',1);return;}unduhBlob(pdfPacking(pk),pk.nama+'.pdf');msg('PDF Detail Packing List diunduh: '+pk.groups.reduce((a,g)=>a+g.n,0)+' roll. Nama file '+pk.nama+'.pdf.');return;}
     if(pdf)unduhBlob(pdfBuat(x.judul,x.info,x.kol,x.bar,x.judul+' - '+tUp(Date.now())),x.nama+'.pdf');else await xlsBuat(x.lembar,x.nama+'.xlsx');
     msg((pdf?'PDF':'Excel')+' diunduh: '+x.n+' baris. Nama file '+x.nama+(pdf?'.pdf':'.xlsx')+'.');
   }catch(err){msg(err.message||'Gagal membuat file.',1);}
