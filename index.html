@@ -271,11 +271,11 @@ async function bacaExcel(f){
   let rows=[],hi=-1;
   for(const n of wb.SheetNames){rows=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null});hi=rows.findIndex(r=>r.indexOf('Kd. Order')>=0&&r.indexOf('Qty')>=0);if(hi>=0)break;}
   if(hi<0)throw new Error('Kolom "Kd. Order" dan "Qty" tidak ditemukan. Pastikan ini file Detail Barang By Jenis Proses.');
-  const h=rows[hi],ci=h.indexOf('Kd. Order'),qi=h.indexOf('Qty'),gi=h.indexOf('Grade'),bi=h.indexOf('Bun'),mi=h.indexOf('Material'),pi=h.indexOf('Pcs'),ti=h.indexOf('Trans. Date'),tdt=v=>{if(typeof v==='number'){const o=XLSX.SSF.parse_date_code(v);return o?String(o.d).padStart(2,'0')+'-'+String(o.m).padStart(2,'0')+'-'+o.y:'';}return String(v==null?'':v).trim();},ki=h.findIndex(x=>/^doc\.?\s*ref+\.?$/i.test(String(x==null?'':x).trim())),data=[];
-  rows.slice(hi+1).forEach(r=>{const c=String(r[ci]==null?'':r[ci]).replace(/\s+/g,' ').trim().toUpperCase(),q=num(r[qi]);if(c&&q)data.push({c:c,q:q,g:String(r[gi]==null?'-':r[gi]).trim()||'-',u:bi>=0?normU(r[bi]):'',m:mi>=0&&r[mi]!=null?String(r[mi]).trim():'',p:pi>=0?num(r[pi]):0,d:ti>=0?tdt(r[ti]):'',k:ki>=0?(({L:'L',R:'R'})[String(r[ki]==null?'':r[ki]).trim().toUpperCase().charAt(0)]||'X'):''});});
+  const h=rows[hi],ci=h.indexOf('Kd. Order'),qi=h.indexOf('Qty'),gi=h.indexOf('Grade'),bi=h.indexOf('Bun'),mi=h.indexOf('Material'),pi=h.indexOf('Pcs'),ti=h.indexOf('Trans. Date'),tdt=v=>{if(typeof v==='number'){const o=XLSX.SSF.parse_date_code(v);return o?String(o.d).padStart(2,'0')+'-'+String(o.m).padStart(2,'0')+'-'+o.y:'';}return String(v==null?'':v).trim();},ki=h.findIndex(x=>/^doc\.?\s*ref+\.?$/i.test(String(x==null?'':x).trim())),data=[],lei=h.indexOf('Lebar'),coi=h.indexOf('Color'),dgi=h.indexOf('Design'),sv=v=>v==null?'':String(v).replace(/\s+/g,' ').trim();
+  rows.slice(hi+1).forEach(r=>{const c=String(r[ci]==null?'':r[ci]).replace(/\s+/g,' ').trim().toUpperCase(),q=num(r[qi]);if(c&&q)data.push({c:c,q:q,g:String(r[gi]==null?'-':r[gi]).trim()||'-',u:bi>=0?normU(r[bi]):'',m:mi>=0&&r[mi]!=null?String(r[mi]).trim():'',p:pi>=0?num(r[pi]):0,d:ti>=0?tdt(r[ti]):'',k:ki>=0?(({L:'L',R:'R'})[String(r[ki]==null?'':r[ki]).trim().toUpperCase().charAt(0)]||'X'):'',lb:lei>=0?sv(r[lei]):'',cl:coi>=0?sv(r[coi]):'',dg:dgi>=0?sv(r[dgi]):'',dr:ki>=0?sv(r[ki]):''});});
   const cu={M:0,Y:0},recv={};data.forEach(d=>{if(d.u)cu[d.u]++;});
   const unit=cu.Y>cu.M?'Y':'M';
-  data.forEach(d=>{const q=conv(d.q,d.u||unit,unit),x=recv[d.c]||(recv[d.c]={t:0,g:{}});x.t+=q;x.g[d.g]=(x.g[d.g]||0)+q;if(d.m&&!x.m)x.m=d.m;x.p=(x.p||0)+d.p;if(tglKey(d.d)>tglKey(x.d))x.d=d.d;if(d.k){x.k=x.k||{L:0,R:0,X:0};x.k[d.k]+=q;}});
+  data.forEach(d=>{const q=conv(d.q,d.u||unit,unit),x=recv[d.c]||(recv[d.c]={t:0,g:{}});x.t+=q;x.g[d.g]=(x.g[d.g]||0)+q;if(d.m&&!x.m)x.m=d.m;x.p=(x.p||0)+d.p;if(tglKey(d.d)>tglKey(x.d))x.d=d.d;if(d.k){x.k=x.k||{L:0,R:0,X:0};x.k[d.k]+=q;}(x.r||(x.r=[])).push([d.p,Math.round(q*100)/100,d.m||'',d.lb,d.cl,d.dg,d.dr,d.g]);});
   const dm=String((rows[0]||[])[0]||'').match(/\((\d{2}-\d{2}-\d{4})\)/);
   return {id:'s'+Date.now().toString(36),file:f.name,up:Date.now(),tgl:dm?dm[1]:'',rows:data.length,unit:unit,recv:recv,
     note:(ki<0?' Kolom "Doc Reff" tidak ditemukan, status sudah cek / belum cek tidak terisi.':'')+(!cu.M&&!cu.Y?' Satuan di file tidak terbaca, dianggap meter.':'')+(cu.M&&cu.Y?' File berisi dua satuan, semuanya diubah ke '+uL(unit)+'.':'')};
@@ -646,7 +646,7 @@ function pdfPacking(P){
     rt(nf2(t.q)+' '+t.u+' = '+fmt(t.n)+' Roll',2,8,PW-M-pad,y-12);y-=h;L(M,y,PW-M,y);});
   y-=18;
   /* daftar S.bin */
-  if(P.sbin.length){ensure(30);T('List Karton :',2,9,M+14,y-9);y-=24;}
+  if(P.sbin.length){ensure(30);T(P.listLabel||'List Karton :',2,9,M+14,y-9);y-=24;}
   const items=P.sbin.map((s,i)=>(i+1)+'. '+s);
   const colW=Math.max(100,...items.map(t=>pw(pdfSan(t),9)+30)),nc=Math.max(1,Math.floor((tw-14)/colW));
   for(let i=0;i<items.length;i+=nc){ensure(16);items.slice(i,i+nc).forEach((t,j)=>T(t,1,9,M+14+j*colW,y-9));y-=16;}
@@ -710,6 +710,32 @@ function dataPacking(mode){
     grade:gl.join(', ')||'-',tanggal:p2(d.getDate())+'-'+p2(d.getMonth()+1)+'-'+d.getFullYear(),
     cetak:p2(d.getDate())+'-'+p2(d.getMonth()+1)+'-'+d.getFullYear()+' '+p2(h12)+':'+p2(d.getMinutes())+':'+p2(d.getSeconds())+' '+(d.getHours()<12?'AM':'PM')};
 }
+
+/* packing list stock fresh: panjang tiap roll dari baris asli file hasil (Qty dibagi Pcs per baris), dikelompokkan per Doc Reff (karton) */
+function dataPackingFresh(x,mode){
+  const G={},uni={},grades={},seen={};let approx=0;
+  x.raw.forEach(r=>{
+    const sk=r.code+'|'+r.u;if(seen[sk])return;seen[sk]=1;
+    const u=r.u==='Y'?'YARDS':'METER';
+    r.rw.forEach(o=>{
+      if(!(o.q>0))return;if(o.ap)approx++;
+      const gk=mode==='warna'?'ALL|'+u:(o.dr||'-')+'|'+u,g=G[gk]||(G[gk]={sb:mode==='warna'?'':(o.dr||'-'),u:u,rows:{},q:0,n:0}),
+        rk=[r.code,o.m,o.dg,o.lb,o.cl].join('|'),row=g.rows[rk]||(g.rows[rk]={k:r.code,m:o.m,c:o.cl||'-',clr:o.cl||'-',lbr:o.lb||'-',design:r.code+' / '+(o.m||'-')+' / '+(o.dg||'-'),pcs:[],q:0,u:u});
+      const p=Math.max(0,Math.round(o.p)),q=o.q;
+      if(p>0){const e=Math.round(q/p*100)/100;let rest=q;for(let i=0;i<p;i++){row.pcs.push(i===p-1?Math.round(rest*100)/100:e);rest-=e;}}else row.pcs.push(Math.round(q*100)/100);
+      row.q+=q;if(o.g)grades[o.g]=1;
+    });
+  });
+  let groups=Object.keys(G).sort((a,b)=>nCmp(G[a].sb,G[b].sb)||nCmp(G[a].u,G[b].u)).map(k=>{const g=G[k];
+    g.rows=Object.keys(g.rows).map(z=>g.rows[z]).sort((a,b)=>nCmp(a.k,b.k)||nCmp(a.m,b.m)||nCmp(a.clr,b.clr));
+    g.rows.forEach(r=>{g.q+=r.q;g.n+=r.pcs.length;const t=uni[g.u]||(uni[g.u]={u:g.u,q:0,n:0});t.q+=r.q;t.n+=r.pcs.length;r.pcs=r.pcs.map(v=>v.toFixed(2));});return g;});
+  if(mode==='warna'){const fl=[];groups.forEach(g=>g.rows.forEach(r=>fl.push({sb:'',u:g.u,rows:[r],q:r.q,n:r.pcs.length})));fl.sort((a,b)=>nCmp(a.rows[0].clr,b.rows[0].clr)||nCmp(a.rows[0].k,b.rows[0].k)||nCmp(a.rows[0].m,b.rows[0].m));groups=fl;}
+  const d=new Date(),p2=z=>String(z).padStart(2,'0'),h12=d.getHours()%12||12,tg=p2(d.getDate())+'-'+p2(d.getMonth()+1)+'-'+d.getFullYear(),gl=Object.keys(grades).sort((a,b)=>nCmp(b,a));
+  return {n:groups.length,approx:approx,groups:groups,tot:Object.keys(uni).map(u=>uni[u]),
+    sbin:mode==='warna'?[]:groups.map(g=>g.sb).filter((v,i,z)=>z.indexOf(v)===i),grade:gl.join(', ')||'-',tanggal:tg,
+    cetak:tg+' '+p2(h12)+':'+p2(d.getMinutes())+':'+p2(d.getSeconds())+' '+(d.getHours()<12?'AM':'PM'),
+    nama:'packing-list'+(mode==='warna'?'-per-warna':'')+'_stock-fresh_'+(x.nama.replace(/^cek-order_stock-fresh_/,''))};
+}
 function unduhBlob(blob,nama){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nama;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);}
 async function xlsBuat(lembar,nama){
   await muat(XLS,()=>window.XLSX);
@@ -719,21 +745,28 @@ async function xlsBuat(lembar,nama){
 }
 const r1=x=>Math.round(x*10)/10,tgl8=k=>{k=String(k||'');return k.length===8?k.slice(6)+'-'+k.slice(4,6)+'-'+k.slice(0,4):'';},stamp=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes());};
 const nmFile=s=>String(s).replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40);
-function xpBar(s){return '<div class="bar xp"><button class="btn" data-xp="xls" data-xs="'+s+'">Unduh Excel</button><button class="btn" data-xp="pdf" data-xs="'+s+'">Unduh PDF</button>'+(s==='grd'?'<button class="btn" data-xp="pdfw" data-xs="grd">Unduh PDF per warna</button>':'')+'</div><p class="note">Isi file mengikuti pencarian yang sedang dipakai.</p>';}
+function xpBar(s){return '<div class="bar xp"><button class="btn" data-xp="xls" data-xs="'+s+'">Unduh Excel</button><button class="btn" data-xp="pdf" data-xs="'+s+'">Unduh PDF</button>'+'<button class="btn" data-xp="pdfw" data-xs="'+s+'">Unduh PDF per warna</button>'+'</div><p class="note">Isi file mengikuti pencarian yang sedang dipakai.</p>';}
+function rollsFor(code,u){
+  const out=[];
+  D.src.forEach(s=>{const v=s.recv[code];if(!v)return;
+    if(v.r)v.r.forEach(a=>out.push({p:a[0],q:conv(a[1],s.unit,u),m:a[2],lb:a[3],cl:a[4],dg:a[5],dr:a[6],g:a[7]}));
+    else out.push({p:v.p||0,q:conv(v.t,s.unit,u),m:v.m||'',lb:'',cl:'',dg:'',dr:'',g:'',ap:1});});
+  return out;
+}
 function dataFresh(){
-  const q=$('#cari').value.trim().toUpperCase(),B=[],tot={};
+  const q=$('#cari').value.trim().toUpperCase(),B=[],tot={},RW=[];
   D.orders.forEach(o=>{
     if(buyer&&bKey(o)!==buyer)return;
     const P=prog(o),ds=o.rows.map(dsg).filter((x,i,a)=>x&&a.indexOf(x)===i),dm=q&&ds.some(x=>x.toUpperCase().indexOf(q)>=0),nh=!buyer&&q&&bNama(o).toUpperCase().indexOf(q)>=0;
     (!q||dm||nh?P.rs:P.rs.filter(r=>r.code.indexOf(q)>=0)).forEach(r=>{
-      const st=r.cl?(r.got>=r.qty*.9?'Close':'Close, kurang '+fmt(r.qty-r.got)+' '+uS(r.u)):stat(r)[1],t=tot[r.u]||(tot[r.u]={q:0,g:0});t.q+=r.qty;t.g+=r.got;
+      const st=r.cl?(r.got>=r.qty*.9?'Close':'Close, kurang '+fmt(r.qty-r.got)+' '+uS(r.u)):stat(r)[1],t=tot[r.u]||(tot[r.u]={q:0,g:0});t.q+=r.qty;t.g+=r.got;RW.push({code:r.code,u:r.u,rw:rollsFor(r.code,r.u)});
       B.push([bNama(o),o.op||o.id||'',o.contract||'',o.dest||'',o.shipment||'',ds.join('; '),r.code,uS(r.u),r1(r.qty),r1(r.got),r.p||0,r1(Math.max(0,r.qty-r.got)),r1(Math.max(0,r.got-r.qty)),r.qty?r1(r.got/r.qty*100):0,st,r.d||'',r.k?r1(r.k.L):'',r.k?r1(r.k.R):'',r.k?r1(r.k.X):'',r.cl?tgl8(r.cl.replace(/-/g,'')):'']);
     });
   });
   const ts=D.src.map(s=>s.up||0).filter(Boolean),ket=['Data stock fresh'+(buyer&&B.length?': '+B[0][0]:': semua buyer'),q?'Pencarian: '+q:'Tanpa pencarian (semua data)','Jumlah: '+B.length+' kode. '+Object.keys(tot).map(u=>'Order '+fmt(tot[u].q)+' '+uS(u)+', sudah ada '+fmt(tot[u].g)+' '+uS(u)).join('; '),ts.length?'Data hasil diunggah terakhir '+tUp(Math.max.apply(null,ts)):'Waktu unggah data hasil belum tercatat','Diunduh '+tUp(Date.now())];
   const H=['Buyer','O.P','Kontrak','Tujuan','Kirim','Design','Kode','Satuan','Order','Sudah ada','Pcs','Sisa','Lebih','Capaian (%)','Status','Terakhir masuk','Sudah cek (L)','Belum cek (R)','Tanpa status','Tanggal close'];
   const pk=[['Buyer',100,'l',0],['O.P',38,'l',1],['Kode',70,'l',6],['Design',95,'l',5],['Order',46,'r',8],['Sudah ada',50,'r',9],['Pcs',34,'r',10],['Sisa',46,'r',11],['Lebih',40,'r',12],['%',34,'r',13],['Status',92,'l',14],['Terakhir masuk',58,'l',15],['L',38,'r',16],['R',40,'r',17]];
-  return {n:B.length,nama:'cek-order_stock-fresh_'+(buyer&&B.length?nmFile(B[0][0])+'_':'')+stamp(),judul:'Cek Order - Data stock fresh',info:ket,
+  return {raw:RW,n:B.length,nama:'cek-order_stock-fresh_'+(buyer&&B.length?nmFile(B[0][0])+'_':'')+stamp(),judul:'Cek Order - Data stock fresh',info:ket,
     lembar:[{nama:'Stock fresh',aoa:[H].concat(B)},{nama:'Info',aoa:ket.map(x=>[x])}],kol:pk.map(c=>({h:c[0],w:c[1],a:c[2]})),bar:B.map(r=>pk.map(c=>r[c[3]]===''||r[c[3]]==null?'':(typeof r[c[3]]==='number'?fmt(r[c[3]]):r[c[3]])))};
 }
 function dataGrade(){
@@ -799,7 +832,7 @@ document.querySelector('.wrap').addEventListener('click',async e=>{
     const x=b.dataset.xs==='stk'?dataFresh():dataGrade();
     if(!x.n){msg('Tidak ada data untuk diunduh. Ubah pencarian atau filter dulu.',1);return;}
     msg('Menyiapkan '+(pdf?'PDF':'Excel')+'...');
-    if(pdf&&b.dataset.xs==='grd'){const pk=dataPacking(pdfw?'warna':'');if(!pk.groups.length){msg('Tidak ada data untuk diunduh. Ubah pencarian atau filter dulu.',1);return;}unduhBlob(pdfPacking(pk),pk.nama+'.pdf');msg('PDF Detail Packing List diunduh: '+pk.groups.reduce((a,g)=>a+g.n,0)+' roll. Nama file '+pk.nama+'.pdf.');return;}
+    if(pdf){const pk=b.dataset.xs==='grd'?dataPacking(pdfw?'warna':''):dataPackingFresh(x,pdfw?'warna':'');if(!pk.groups.length){msg('Tidak ada data untuk diunduh. Ubah pencarian atau filter dulu.',1);return;}unduhBlob(pdfPacking(pk),pk.nama+'.pdf');msg('PDF Detail Packing List diunduh: '+pk.groups.reduce((a,g)=>a+g.n,0)+' roll. Nama file '+pk.nama+'.pdf.'+(pk.approx?' Sebagian data dari unggahan lama tidak punya panjang roll asli (dirata-rata). Unggah ulang file hasil Excel-nya.':''));return;}
     if(pdf)unduhBlob(pdfBuat(x.judul,x.info,x.kol,x.bar,x.judul+' - '+tUp(Date.now())),x.nama+'.pdf');else await xlsBuat(x.lembar,x.nama+'.xlsx');
     msg((pdf?'PDF':'Excel')+' diunduh: '+x.n+' baris. Nama file '+x.nama+(pdf?'.pdf':'.xlsx')+'.');
   }catch(err){msg(err.message||'Gagal membuat file.',1);}
