@@ -446,7 +446,7 @@ async function bacaGrade(f){
   for(const n of wb.SheetNames){rows=XLSX.utils.sheet_to_json(wb.Sheets[n],{header:1,raw:true,defval:null});hi=rows.findIndex(r=>r.indexOf('Kd. Order')>=0&&r.indexOf('Qty')>=0);if(hi>=0)break;}
   if(hi<0)throw new Error(f.name+': kolom "Kd. Order" dan "Qty" tidak ditemukan. Pastikan ini file Detail Barang By Jenis Proses.');
   const h=rows[hi],ix=n=>h.indexOf(n),fx=re=>h.findIndex(x=>re.test(String(x==null?'':x).trim())),ci=ix('Kd. Order'),qi=ix('Qty'),mi=ix('Material'),pi=ix('Pcs'),di=ix('Duration'),ti=ix('Trans. Date'),bi=ix('Bun'),
-    si=fx(/^s\.?\s*bin$/i),ki=fx(/^doc\.?\s*ref+\.?$/i),gi=ix('Grade'),lt=ix('Lot'),ai=ix('Accs');
+    le=ix('Lebar'),dg=ix('Design'),si=fx(/^s\.?\s*bin$/i),ki=fx(/^doc\.?\s*ref+\.?$/i),gi=ix('Grade'),lt=ix('Lot'),ai=ix('Accs');
   const li=ix('Color'); /* kolom Color dipakai apa adanya sesuai isiannya, tidak diganti kolom Accs */
   const title=String((rows[0]||[])[0]||'').replace(/\s+/g,' ').trim();
   const name=title.replace(/^Detail Barang By Jenis Proses\s*/i,'').trim()||f.name.replace(/\.[^.]+$/,''),dm=name.match(/\((\d{2}-\d{2}-\d{4})\)/),tgl=dm?dm[1]:'';
@@ -456,7 +456,7 @@ async function bacaGrade(f){
   rows.slice(hi+1).forEach(r=>{
     const k=cv(r[ci]),q=num(r[qi]),p=pi>=0?num(r[pi]):0;if(!k||(!q&&!p))return;
     const d=dt(ti>=0?r[ti]:''),u=bi>=0?normU(r[bi]):'';if(u)cu[u]++;
-    R.push([sx(si>=0?cv(r[si]):''),sx(d),sx(ki>=0?cv(r[ki]):''),sx(gi>=0?cv(r[gi]):''),sx(k),sx(mi>=0?cv(r[mi]):''),sx((li>=0?cv(r[li]):'')||'-'),sx(lt>=0?cv(r[lt]):''),sx(di>=0?cv(r[di]):''),sx(bi>=0?cv(r[bi]):''),p,q,bucketDur(di>=0?r[di]:'',tgl,d)]);
+    R.push([sx(si>=0?cv(r[si]):''),sx(d),sx(ki>=0?cv(r[ki]):''),sx(gi>=0?cv(r[gi]):''),sx(k),sx(mi>=0?cv(r[mi]):''),sx((li>=0?cv(r[li]):'')||'-'),sx(lt>=0?cv(r[lt]):''),sx(di>=0?cv(r[di]):''),sx(bi>=0?cv(r[bi]):''),p,q,bucketDur(di>=0?r[di]:'',tgl,d),sx(le>=0?cv(r[le]):''),sx(dg>=0?cv(r[dg]):'')]);
   });
   if(!R.length)throw new Error(f.name+': tidak ada baris data yang terbaca.');
   return {id:'g'+Date.now().toString(36)+Math.random().toString(36).slice(2,5),name:name,file:f.name,up:Date.now(),tgl:tgl,unit:cu.Y>cu.M?'Y':'M',rows:R.length,S:S,r:R};
@@ -481,7 +481,7 @@ async function tambahGrade(fs){
 const XC=new WeakMap(),ALIAS={SB:0,SBIN:0,'S.BIN':0,TGL:1,TANGGAL:1,DATE:1,DOC:2,REF:2,DOCREFF:2,GRADE:3,GR:3,KD:4,ORDER:4,KDORDER:4,MATERIAL:5,MAT:5,COLOR:6,WARNA:6,LOT:7,DURASI:8,DURATION:8};
 function gRows(s){
   let x=XC.get(s);if(x)return x;
-  if(s.r){const S=s.S;x=s.r.map(a=>{const f=[0,1,2,3,4,5,6,7,8].map(i=>S[a[i]]);return {f:f,bn:S[a[9]],p:a[10],q:a[11],b:a[12]};});}
+  if(s.r){const S=s.S;x=s.r.map(a=>{const f=[0,1,2,3,4,5,6,7,8].map(i=>S[a[i]]);return {f:f,bn:S[a[9]],p:a[10],q:a[11],b:a[12],lb:a[13]==null?'':S[a[13]],dg:a[14]==null?'':S[a[14]]};});}
   else x=(s.g||[]).map(g=>({f:['',g.d,'','',g.k,g.m,g.c,'',''],bn:'',p:g.p,q:g.q,b:g.b,lg:1}));/* data lama: sudah diringkas, belum ada baris mentah */
   x.forEach(o=>{o.u=o.f.map(v=>v.toUpperCase());o.h=o.u.join('\n');o.m=o.f[5];o.k=o.f[4];o.c=o.f[6];});
   XC.set(s,x);return x;
@@ -584,6 +584,130 @@ function pdfBuat(judul,info,kol,bar,foot){
   out+='trailer\n<< /Size '+n+' /Root 1 0 R >>\nstartxref\n'+xr+'\n%%EOF';
   return new Blob([Uint8Array.from(out,c=>c.charCodeAt(0))],{type:'application/pdf'});
 }
+
+/* ---------- PDF format Detail Packing List (stock grade) ---------- */
+const TW=[250,250,333,408,500,500,833,778,333,333,389,564,250,333,250,278,500,500,500,500,500,500,500,500,500,500,278,278,564,564,564,444,921,722,667,667,722,611,556,722,722,333,389,722,611,889,722,722,556,722,667,556,611,722,722,944,722,722,611,333,278,333,469,500,333,444,500,444,500,444,333,500,500,278,278,500,278,778,500,500,500,500,333,389,278,500,500,722,500,500,444,480,200,480,541];
+const tw_=(s,fs)=>{let w=0;for(let i=0;i<s.length;i++){const k=s.charCodeAt(i);w+=k>=32&&k<=126?TW[k-32]:500;}return w*fs/1000;};
+const nf2=n=>Number(n).toLocaleString('id-ID',{minimumFractionDigits:2,maximumFractionDigits:2});
+const nCmp=(a,b)=>String(a).localeCompare(String(b),undefined,{numeric:true});
+function pdfPacking(P){
+  const PW=595.28,PH=841.89,M=28,tw=PW-2*M,fs=7.5,lh=11.5,pad=4;
+  /* lebar kolom: NO, DESIGN NO., LBR, CLR, PIECE LENGTH, TOTAL */
+  const cw=[22,118,28,28,0,108];cw[4]=tw-cw[0]-cw[1]-cw[2]-cw[3]-cw[5];
+  const cx=[M];cw.forEach((w,i)=>cx.push(cx[i]+w));
+  const PER=10,pieceW=(cw[4]-2*pad)/PER;
+  const pages=[];let cur,y;
+  const T=(t,f,s,x,yy)=>cur.push({k:'t',t:pdfSan(t),f:f,s:s,x:x,y:yy});
+  const L=(x1,y1,x2,y2)=>cur.push({k:'m',x1:x1,y1:y1,x2:x2,y2:y2});
+  const rt=(t,f,s,xr,yy)=>T(t,f,s,xr-(f===3?tw_(pdfSan(t),s):pw(pdfSan(t),s)),yy);
+  const ctr=(t,f,s,x0,x1,yy)=>T(t,f,s,x0+(x1-x0-pw(pdfSan(t),s))/2,yy);
+  const kepala=()=>{
+    cur=[];pages.push(cur);y=PH-M;
+    ctr('DETAIL PACKING LIST',3,13,M,PW-M,y-12);y-=34;
+    T('Tanggal: '+P.tanggal,1,9,M,y);rt('Grade: '+P.grade,1,9,PW-M,y);y-=8;
+    const h=15;L(M,y,PW-M,y);L(M,y-h,PW-M,y-h);
+    L(M,y,M,y-h);cx.slice(1).forEach(x=>L(x,y,x,y-h));
+    ['NO.','DESIGN NO.','LBR','CLR','PIECE LENGTH','TOTAL'].forEach((t,i)=>ctr(t,2,7,cx[i],cx[i+1],y-10.5));
+    y-=h;P.top=y;
+  };
+  /* garis tegak kolom untuk blok setinggi y0..y1 */
+  const vert=(y0,y1)=>cx.forEach(x=>L(x,y0,x,y1));
+  kepala();
+  const FOOT=34;
+  let segTop=P.top;
+  const brk=()=>{vert(segTop,y);L(M,y,PW-M,y);kepala();segTop=P.top;};
+  const ensure=h=>{if(y-h<M+FOOT)brk();};
+  P.groups.forEach((g,gi)=>{
+    ensure(lh*3+2*pad);
+    ctr(String(gi+1),1,fs,cx[0],cx[1],y-pad-fs);
+    g.rows.forEach(r=>{
+      const nl=Math.max(1,Math.ceil(r.pcs.length/PER));let done=0,firstChunk=true;
+      while(done<nl){
+        let av=Math.floor((y-M-FOOT-2*pad)/lh);
+        if(av<Math.min(nl-done,3)){brk();av=Math.floor((y-M-FOOT-2*pad)/lh);}
+        const k=Math.min(nl-done,av),top=y;
+        T(r.design,1,fs,cx[1]+pad,top-pad-fs);ctr(r.lbr,1,fs,cx[2],cx[3],top-pad-fs);ctr(r.clr,1,fs,cx[3],cx[4],top-pad-fs);
+        r.pcs.slice(done*PER,(done+k)*PER).forEach((v,i)=>T(v,1,fs,cx[4]+pad+(i%PER)*pieceW,top-pad-fs-Math.floor(i/PER)*lh));
+        if(firstChunk)rt(nf2(r.q)+' '+r.u+' = '+fmt(r.pcs.length)+' Roll',1,fs,cx[6]-pad,top-pad-fs);
+        else rt('(lanjutan)',1,fs,cx[6]-pad,top-pad-fs);
+        y-=k*lh+2*pad;done+=k;firstChunk=false;
+      }
+    });
+    if(g.rows.length>1){
+      ensure(lh+2*pad);L(cx[1],y,PW-M,y);
+      rt(nf2(g.q)+' '+g.u+' = '+fmt(g.n)+' Roll',1,fs,cx[6]-pad,y-pad-fs);y-=lh+2*pad;
+    }
+    vert(segTop,y);L(M,y,PW-M,y);segTop=y;
+  });
+  /* grand total */
+  ensure(20);P.tot.forEach(t=>{
+    ensure(20);const h=18;L(M,y,M,y-h);L(PW-M,y,PW-M,y-h);L(cx[5],y,cx[5],y-h);
+    T(P.tot.length>1?'GRAND TOTAL ('+t.u+') :':'GRAND TOTAL :',2,8,M+pad,y-12);
+    rt(nf2(t.q)+' '+t.u+' = '+fmt(t.n)+' Roll',2,8,PW-M-pad,y-12);y-=h;L(M,y,PW-M,y);});
+  y-=18;
+  /* daftar S.bin */
+  ensure(30);T('List Karton :',2,9,M+14,y-9);y-=24;
+  const items=P.sbin.map((s,i)=>(i+1)+'. '+s);
+  const colW=Math.max(100,...items.map(t=>pw(pdfSan(t),9)+30)),nc=Math.max(1,Math.floor((tw-14)/colW));
+  for(let i=0;i<items.length;i+=nc){ensure(16);items.slice(i,i+nc).forEach((t,j)=>T(t,1,9,M+14+j*colW,y-9));y-=16;}
+  /* tanda tangan */
+  y-=14;ensure(80);
+  const sy=y,cL=PW*0.22,cM=PW*0.42,cR=PW*0.78;
+  ctr('Barang Telah Diperiksa Oleh',1,7,cL-30,cM+30,sy-8);
+  ctr('Foreman Gudang Final',1,7,cL-45,cL+45,sy-17);ctr('Foreman Gudang Packing',1,7,cM-45,cM+45,sy-17);ctr('Dibuat Oleh',1,7,cR-45,cR+45,sy-13);
+  [cL,cM,cR].forEach(c=>{L(c-32,sy-58,c+32,sy-58);ctr('Nama Jelas',1,7,c-45,c+45,sy-67);});
+  /* PDF */
+  const N=pages.length,E=t=>t.replace(/([\\()])/g,'\\$1');
+  let out='%PDF-1.4\n',off=[];
+  const obj=(n,b)=>{off[n]=out.length;out+=n+' 0 obj\n'+b+'\nendobj\n';};
+  obj(1,'<< /Type /Catalog /Pages 2 0 R >>');
+  obj(2,'<< /Type /Pages /Kids ['+pages.map((p,i)=>(6+2*i)+' 0 R').join(' ')+'] /Count '+N+' >>');
+  obj(3,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+  obj(4,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+  obj(5,'<< /Type /Font /Subtype /Type1 /BaseFont /Times-Bold /Encoding /WinAnsiEncoding >>');
+  pages.forEach((p,i)=>{
+    const pn='Page'.padEnd(0)+'          : '+(i+1)+' / '+N;
+    p.push({k:'m',x1:M,y1:M+14,x2:PW-M,y2:M+14},{k:'t',t:'Page',f:1,s:7,x:M,y:M+4},{k:'t',t:': '+(i+1)+' / '+N,f:1,s:7,x:M+44,y:M+4});
+    const pr='Printed Date: '+P.cetak;p.push({k:'t',t:pr,f:1,s:7,x:PW-M-pw(pr,7),y:M+4});
+    const c=p.map(o=>o.k==='m'?'0 G 0.5 w '+o.x1.toFixed(1)+' '+o.y1.toFixed(1)+' m '+o.x2.toFixed(1)+' '+o.y2.toFixed(1)+' l S':'BT /F'+o.f+' '+o.s+' Tf '+o.x.toFixed(1)+' '+o.y.toFixed(1)+' Td ('+E(o.t)+') Tj ET').join('\n');
+    obj(6+2*i,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+PW+' '+PH+'] /Resources << /Font << /F1 3 0 R /F2 4 0 R /F3 5 0 R >> >> /Contents '+(7+2*i)+' 0 R >>');
+    obj(7+2*i,'<< /Length '+c.length+' >>\nstream\n'+c+'\nendstream');
+  });
+  const n=6+2*N,xr=out.length;
+  out+='xref\n0 '+n+'\n0000000000 65535 f \n';for(let i=1;i<n;i++)out+=String(off[i]).padStart(10,'0')+' 00000 n \n';
+  out+='trailer\n<< /Size '+n+' /Root 1 0 R >>\nstartxref\n'+xr+'\n%%EOF';
+  return new Blob([Uint8Array.from(out,c=>c.charCodeAt(0))],{type:'application/pdf'});
+}
+/* data packing list: baris stock grade yang sedang dicari, dikelompokkan per S.bin lalu per Kd. Order / Material / Design / Lebar / Color */
+function dataPacking(){
+  const a=$('#cari').value.trim().toUpperCase(),tk=qTok(a),files=gsel?D.grd.filter(s=>s.id===gsel):D.grd;
+  const G={},grades={},uni={},sb={};let n=0;
+  files.forEach(s=>{
+    let rs=gRows(s).filter(o=>gF(o)&&(!tk.length||gHit(o,tk)));
+    if(gsel&&gd)rs=rs.filter(o=>o.m===gd.m&&o.k===gd.k&&o.c===gd.c&&o.b===gd.b);
+    const u=/^Y/i.test(s.unit)?'YARDS':'METER',wd=(String(s.name).match(/\b(\d{2,3})\b(?!\s*\()/)||[])[1]||'';
+    rs.forEach(o=>{
+      const gk=(files.length>1?s.id+'|':'')+(o.f[0]||'-'),g=G[gk]||(G[gk]={sb:o.f[0]||'-',u:u,rows:{},q:0,n:0}),
+        lb=o.lb||wd,dg=o.dg||'-',rk=[o.k,o.m,dg,lb,o.c].join('|'),r=g.rows[rk]||(g.rows[rk]={k:o.k,m:o.m,c:o.c,lbr:lb,clr:o.c,design:o.k+' / '+o.m+' / '+dg,pcs:[],q:0,u:u});
+      const p=Math.max(0,Math.round(o.p)),q=o.q;
+      if(p>0){const e=Math.round(q/p*100)/100;let rest=q;for(let i=0;i<p;i++){const v=i===p-1?Math.round(rest*100)/100:e;r.pcs.push(v);rest-=e;}}
+      else if(q>0)r.pcs.push(q);
+      r.q+=q;g.q+=q;g.n+=r.pcs.length||0;
+      if(o.f[3])grades[o.f[3]]=1;if(o.f[2])sb[o.f[2]]=1;
+      const t=uni[u]||(uni[u]={u:u,q:0,n:0});t.q+=q;t.n+=r.pcs.length?(p>0?p:1):0;n++;
+    });
+  });
+  /* n roll akurat: hitung ulang dari panjang potongan */
+  Object.keys(uni).forEach(u=>{uni[u].n=0;});
+  const groups=Object.keys(G).sort((x,y)=>nCmp(G[x].sb,G[y].sb)).map(k=>{const g=G[k];
+    g.rows=Object.keys(g.rows).map(x=>g.rows[x]).sort((x,y)=>nCmp(x.k,y.k)||nCmp(x.m,y.m)||nCmp(x.c,y.c));
+    g.n=0;g.rows.forEach(r=>{g.n+=r.pcs.length;uni[g.u].n+=r.pcs.length;r.pcs=r.pcs.map(v=>v.toFixed(2));});return g;});
+  const d=new Date(),p2=x=>String(x).padStart(2,'0'),h12=d.getHours()%12||12;
+  const gl=Object.keys(grades).sort((x,y)=>nCmp(y,x));
+  return {n:n,nama:'packing-list_stock-grade_'+(gsel?nmFile(files[0].name)+'_':'')+stamp(),groups:groups,tot:Object.keys(uni).map(u=>uni[u]),sbin:Object.keys(sb).sort(nCmp),
+    grade:gl.join(', ')||'-',tanggal:p2(d.getDate())+'-'+p2(d.getMonth()+1)+'-'+d.getFullYear(),
+    cetak:p2(d.getDate())+'-'+p2(d.getMonth()+1)+'-'+d.getFullYear()+' '+p2(h12)+':'+p2(d.getMinutes())+':'+p2(d.getSeconds())+' '+(d.getHours()<12?'AM':'PM')};
+}
 function unduhBlob(blob,nama){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nama;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);}
 async function xlsBuat(lembar,nama){
   await muat(XLS,()=>window.XLSX);
@@ -629,7 +753,7 @@ function dataGrade(){
   const pk=pm?[['Stock grade',90,'l',0],['S.bin',50,'l',1],['Doc Reff',70,'l',2],['Grade',36,'l',3],['Kd. Order',60,'l',4],['Material',60,'l',5],['Color',50,'l',6],['Lot',40,'l',7],['Bun',34,'l',8],['Pcs',34,'r',9],['Qty',48,'r',10],['Trans. Date',56,'l',13]]:[['Stock grade',140,'l',0],['Material',80,'l',1],['Kd. Order',80,'l',2],['Color',80,'l',3],['Pcs',50,'r',4],['Qty',70,'r',5],['Satuan',40,'l',6],['Duration',100,'l',7],['Trans. Date terakhir',80,'l',8]];
   const src=pm?Dt:R;
   return {n:pm?Dt.length:R.length,nama:'cek-order_stock-grade_'+(gsel?nmFile(files[0].name)+'_':'')+stamp(),judul:'Cek Order - Data stock grade',info:ket,
-    lembar:[{nama:'Ringkasan',aoa:[['Stock grade','Material','Kd. Order','Color','Pcs','Qty','Satuan','Duration','Trans. Date terakhir']].concat(R)},{nama:'Detail',aoa:[['Stock grade','S.bin','Doc Reff','Grade','Kd. Order','Material','Color','Lot','Bun','Pcs','Qty','Satuan','Duration','Trans. Date']].concat(Dt)},{nama:'Info',aoa:ket.map(x=>[x])}],
+    lembar:[{nama:'Ringkasan',aoa:[['Stock grade','Material','Kd. Order','Color','Pcs','Qty','Satuan','Duration','Trans. Date terakhir']].concat(R)},{nama:'Detail',aoa:[['Stock grade','S.bin','Doc Reff','Grade','Kd. Order','Material','Color','Lot','Bun','Pcs','Qty','Satuan','Duration','Trans. Date']].concat(Dt)},{nama:'List Karton',aoa:[['List Karton']].concat(Dt.map(r=>r[2]).filter((v,i,a)=>v&&a.indexOf(v)===i).sort(nCmp).map(v=>[v]))},{nama:'Info',aoa:ket.map(x=>[x])}],
     kol:pk.map(c=>({h:c[0],w:c[1],a:c[2]})),bar:src.map(r=>pk.map(c=>r[c[3]]===''||r[c[3]]==null?'':(typeof r[c[3]]==='number'?fmt(r[c[3]]):r[c[3]])))};
 }
 /*/X*/
@@ -673,6 +797,7 @@ document.querySelector('.wrap').addEventListener('click',async e=>{
     const x=b.dataset.xs==='stk'?dataFresh():dataGrade();
     if(!x.n){msg('Tidak ada data untuk diunduh. Ubah pencarian atau filter dulu.',1);return;}
     msg('Menyiapkan '+(pdf?'PDF':'Excel')+'...');
+    if(pdf&&b.dataset.xs==='grd'){const pk=dataPacking();if(!pk.groups.length){msg('Tidak ada data untuk diunduh. Ubah pencarian atau filter dulu.',1);return;}unduhBlob(pdfPacking(pk),pk.nama+'.pdf');msg('PDF Detail Packing List diunduh: '+pk.groups.reduce((a,g)=>a+g.n,0)+' roll. Nama file '+pk.nama+'.pdf.');return;}
     if(pdf)unduhBlob(pdfBuat(x.judul,x.info,x.kol,x.bar,x.judul+' - '+tUp(Date.now())),x.nama+'.pdf');else await xlsBuat(x.lembar,x.nama+'.xlsx');
     msg((pdf?'PDF':'Excel')+' diunduh: '+x.n+' baris. Nama file '+x.nama+(pdf?'.pdf':'.xlsx')+'.');
   }catch(err){msg(err.message||'Gagal membuat file.',1);}
