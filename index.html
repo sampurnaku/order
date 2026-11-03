@@ -423,13 +423,13 @@ function render(){
   const nu=D.src.length?unk('').length:0;$('#nbadge').innerHTML=nu?'<span class="bd">'+nu+'</span>':'';
   if(!D.orders.length){$('#list').innerHTML='<p class="note">Belum ada order. Tambahkan PDF Instruction Sheet di menu Upload.</p>';return;}
   if(buyer&&!D.orders.some(o=>bKey(o)===buyer))buyer=null;
-  if(!buyer){$('#list').innerHTML=upNote()+buyerList(q);return;}
+  if(!buyer){$('#list').innerHTML=upNote()+xpBar('stk')+buyerList(q);return;}
   const act=[],dn=[];
   D.orders.forEach((o,i)=>{if(bKey(o)!==buyer)return;const h=card(o,i,cnt,q,false);if(h)(oDone(o)?dn:act).push(h);});
   let html='<div class="dh"><button class="btn" data-back="1" aria-label="Kembali ke daftar buyer">Daftar buyer</button><h2 class="bn">'+esc(bNama(D.orders.find(o=>bKey(o)===buyer)))+'</h2></div>'+act.join('');
   if(!act.length)html+='<p class="note">'+(q&&!dn.length?'Tidak ada kode yang cocok.':q?'':'Semua order buyer ini sudah close.')+'</p>';
   if(dn.length)html+='<details class="done"'+(q?' open':'')+'><summary>Order close ('+dn.length+')</summary>'+dn.join('')+'</details>';
-  $('#list').innerHTML=upNote()+html;setSh();
+  $('#list').innerHTML=upNote()+xpBar('stk')+html;setSh();
 }
 
 /*G*/
@@ -510,21 +510,129 @@ function renderG(){
   if(!gsel){
     gd=null;
     const cards=D.grd.map(s=>{const rs=ft(s);if(!rs.length)return '';const T=gTot(rs);return '<button class="by" data-gsel="'+esc(s.id)+'"><div class="oh"><b>'+esc(s.name)+'</b><span>'+fmt(T.sum)+' '+uS(s.unit)+'</span></div><div class="meta"><span>'+fmt(T.kd)+' Kd. Order</span><span>'+fmt(T.p)+' pcs</span>'+(s.up?'<span>Diunggah '+tUp(s.up)+'</span>':'')+(tk.length?'<span>'+fmt(rs.length)+' baris cocok</span>':'')+'</div><div class="gtags">'+[0,1,2].map(b=>'<span class="tg '+BC[b]+'">'+BS[b]+' '+fmt(T.t[b])+'</span>').join('')+'</div></button>';}).join('');
-    el.innerHTML=cards||'<p class="note">'+(D.grd.length?'Tidak ada data yang cocok.':'Belum ada data stock grade. Unggah file Excel di menu Upload, bagian Stock grade.')+'</p>';
+    el.innerHTML=(cards?xpBar('grd'):'')+(cards||'<p class="note">'+(D.grd.length?'Tidak ada data yang cocok.':'Belum ada data stock grade. Unggah file Excel di menu Upload, bagian Stock grade.')+'</p>');
     schVis();return;}
   const s=D.grd.find(x=>x.id===gsel),u=uS(s.unit),cmp=(a,b)=>a<b?-1:a>b?1:0,rs=ft(s);
   if(gd){
     const dr=rs.filter(o=>o.m===gd.m&&o.k===gd.k&&o.c===gd.c&&o.b===gd.b).sort((a,b)=>a.f[0].localeCompare(b.f[0],undefined,{numeric:true})||tglKey(a.f[1])-tglKey(b.f[1])||cmp(a.f[2],b.f[2])),T=gTot(dr),pc=dr.reduce((a,o)=>a+o.p,0);
     const body=dr.map(o=>'<tr><td>'+esc(o.f[0])+'</td><td>'+esc(o.f[2])+'<small>Grade '+esc(o.f[3])+' · '+esc(o.f[1])+'</small>'+(o.f[7]?'<small>Lot '+esc(o.f[7])+'</small>':'')+(o.f[8]?'<small>'+esc(o.f[8])+'</small>':'')+'</td><td>'+esc(o.f[4])+'</td><td>'+esc(o.f[5])+'</td><td>'+esc(o.f[6])+'</td><td class="nw">'+esc(o.bn)+'</td><td>'+fmt(o.p)+'</td><td>'+fmt(o.q)+'</td></tr>').join('');
-    el.innerHTML='<div class="gsh"><div class="dh"><button class="btn" data-gdback="1" aria-label="Kembali ke daftar material">Kembali</button><h2 class="bn">Material '+esc(gd.m)+'</h2></div><div class="gtags"><span class="tg s0">'+esc(s.name)+(s.up?', diunggah '+tUp(s.up):'')+'</span><span class="tg s0">Kd. Order '+esc(gd.k)+'</span><span class="tg s0">Color '+esc(gd.c)+'</span><span class="tg '+BC[gd.b]+'">'+BS[gd.b]+'</span><span class="tg s0">'+fmt(dr.length)+' baris: '+fmt(pc)+' pcs, '+fmt(T.sum)+' '+u+'</span></div></div><div class="gcard d"><div class="tx"><table><thead><tr><th>S.bin</th><th>Doc Reff</th><th>Kd. Order</th><th>Material</th><th>Color</th><th>Bun</th><th>Pcs</th><th>Qty ('+u+')</th></tr></thead><tbody>'+(body||'<tr><td colspan="8">'+(rs.length||!q?'Tidak ada data yang cocok.':'Tidak ada data yang cocok dengan pencarian.')+'</td></tr>')+'</tbody></table></div></div>';
+    el.innerHTML='<div class="gsh"><div class="dh"><button class="btn" data-gdback="1" aria-label="Kembali ke daftar material">Kembali</button><h2 class="bn">Material '+esc(gd.m)+'</h2></div><div class="gtags"><span class="tg s0">'+esc(s.name)+(s.up?', diunggah '+tUp(s.up):'')+'</span><span class="tg s0">Kd. Order '+esc(gd.k)+'</span><span class="tg s0">Color '+esc(gd.c)+'</span><span class="tg '+BC[gd.b]+'">'+BS[gd.b]+'</span><span class="tg s0">'+fmt(dr.length)+' baris: '+fmt(pc)+' pcs, '+fmt(T.sum)+' '+u+'</span></div></div>'+xpBar('grd')+'<div class="gcard d"><div class="tx"><table><thead><tr><th>S.bin</th><th>Doc Reff</th><th>Kd. Order</th><th>Material</th><th>Color</th><th>Bun</th><th>Pcs</th><th>Qty ('+u+')</th></tr></thead><tbody>'+(body||'<tr><td colspan="8">'+(rs.length||!q?'Tidak ada data yang cocok.':'Tidak ada data yang cocok dengan pencarian.')+'</td></tr>')+'</tbody></table></div></div>';
     schVis();setGh();return;}
   gA=gAgg(rs).sort((a,b)=>(+a.m-+b.m)||cmp(a.m,b.m)||cmp(a.k,b.k)||cmp(a.c,b.c)||a.b-b.b);
   const F={p:0,q:0,t:[0,0,0]};rs.forEach(x=>{F.p+=x.p;F.q+=x.q;F.t[x.b]+=x.q;});
   const body=gA.map((x,i)=>'<tr><td>'+(x.lg?esc(x.m):'<div class="mr"><span>'+esc(x.m)+'</span><button class="dbtn" data-gm="'+i+'" aria-label="Detail material '+esc(x.m)+'">Detail ›</button></div><small>'+fmt(x.n)+' baris</small>')+'</td><td>'+esc(x.k)+'</td><td>'+esc(x.c)+'</td><td>'+fmt(x.p)+'</td><td>'+fmt(x.q)+'</td><td><span class="tg '+BC[x.b]+'">'+BS[x.b]+'</span></td><td class="nw">'+esc(String(x.d).replace(/^(\d\d-\d\d-)\d\d(\d\d)$/,'$1$2'))+'</td></tr>').join('');
-  el.innerHTML='<div class="gsh"><div class="dh"><button class="btn" data-gback="1" aria-label="Kembali ke daftar stock grade">Daftar grade</button><h2 class="bn">'+esc(s.name)+'</h2></div><div class="gtags"><span class="tg s0">'+(q||tk.length?'Hasil cari, '+fmt(rs.length)+' baris: ':'Total: ')+fmt(F.p)+' pcs, '+fmt(F.q)+' '+u+'</span>'+[0,1,2].map(b=>'<span class="tg '+BC[b]+'">'+BS[b]+' '+fmt(F.t[b])+'</span>').join('')+(s.up?'<span class="tg s0">Diunggah '+tUp(s.up)+'</span>':'')+'</div>'+(s.r?'':'<p class="note">Format lama: unggah ulang file ini untuk pencarian semua kolom dan detail per material.</p>')+'</div><div class="gcard"><div class="tx"><table><thead><tr><th>Material</th><th>Kd. Order</th><th>Color</th><th>Pcs</th><th>Qty ('+u+')</th><th>Duration</th><th>Trans. Date</th></tr></thead><tbody>'+(body||'<tr><td colspan="7">Tidak ada data yang cocok.</td></tr>')+'</tbody></table></div></div>';
+  el.innerHTML='<div class="gsh"><div class="dh"><button class="btn" data-gback="1" aria-label="Kembali ke daftar stock grade">Daftar grade</button><h2 class="bn">'+esc(s.name)+'</h2></div><div class="gtags"><span class="tg s0">'+(q||tk.length?'Hasil cari, '+fmt(rs.length)+' baris: ':'Total: ')+fmt(F.p)+' pcs, '+fmt(F.q)+' '+u+'</span>'+[0,1,2].map(b=>'<span class="tg '+BC[b]+'">'+BS[b]+' '+fmt(F.t[b])+'</span>').join('')+(s.up?'<span class="tg s0">Diunggah '+tUp(s.up)+'</span>':'')+'</div>'+(s.r?'':'<p class="note">Format lama: unggah ulang file ini untuk pencarian semua kolom dan detail per material.</p>')+'</div>'+xpBar('grd')+'<div class="gcard"><div class="tx"><table><thead><tr><th>Material</th><th>Kd. Order</th><th>Color</th><th>Pcs</th><th>Qty ('+u+')</th><th>Duration</th><th>Trans. Date</th></tr></thead><tbody>'+(body||'<tr><td colspan="7">Tidak ada data yang cocok.</td></tr>')+'</tbody></table></div></div>';
   schVis();setGh();
 }
 /*/G*/
+/*X*/
+/* ---------- unduh Excel dan PDF mengikuti pencarian ---------- */
+const HW=[278,278,355,556,556,889,667,191,333,333,389,584,278,333,278,278].concat(Array(10).fill(556),[278,278,584,584,584,556,1015],[667,667,722,722,667,611,778,722,278,500,667,556,833,722,778,667,778,722,667,611,722,667,944,667,667,611],[278,278,278,469,556,333],[556,556,500,556,556,278,556,556,222,222,500,222,833,556,556,556,556,333,500,278,556,500,722,500,500,500],[334,260,334,584]);
+const pdfSan=s=>String(s==null?'':s).replace(/[\u2013\u2014]/g,'-').replace(/[\u2018\u2019]/g,"'").replace(/[\u201c\u201d]/g,'"').replace(/\u203a/g,'>').replace(/\u2026/g,'...').replace(/\s+/g,' ').replace(/[^\x20-\x7e\xa0-\xff]/g,'?');
+const pw=(s,fs)=>{let w=0;for(let i=0;i<s.length;i++){const k=s.charCodeAt(i);w+=k>=32&&k<=126?HW[k-32]:556;}return w*fs/1000;};
+function pwrap(s,w,fs,mx){
+  const L=[];let cur='';
+  pdfSan(s).split(' ').forEach(wd=>{
+    const t=cur?cur+' '+wd:wd;if(pw(t,fs)<=w){cur=t;return;}
+    if(cur){L.push(cur);cur='';}
+    while(wd.length>1&&pw(wd,fs)>w){let n=wd.length;while(n>1&&pw(wd.slice(0,n),fs)>w)n--;L.push(wd.slice(0,n));wd=wd.slice(n);}
+    cur=wd;
+  });
+  if(cur)L.push(cur);
+  if(L.length>mx){L.length=mx;L[mx-1]=L[mx-1].replace(/.{0,2}$/,'..');}
+  return L.length?L:[''];
+}
+/* PDF sederhana tanpa pustaka: A4 mendatar, judul kolom diulang di tiap halaman */
+function pdfBuat(judul,info,kol,bar,foot){
+  const PW=842,PH=595,M=30,fs=7.5,lh=9.5,pd=2.5,tw=PW-2*M,sum=kol.reduce((a,k)=>a+k.w,0),pages=[];
+  let cur,y,x0=[];kol.forEach((k,i)=>{k.pw=k.w/sum*tw;x0[i]=i?x0[i-1]+kol[i-1].pw:M;});
+  const sh=(L,f,s,x,yy)=>L.forEach((t,i)=>cur.push({k:'t',t:t,x:x,y:yy-i*lh,f:f,s:s}));
+  const kepala=()=>{
+    const ls=kol.map(k=>pwrap(k.h,k.pw-2*pd,fs,2)),hh=Math.max.apply(null,ls.map(l=>l.length))*lh+2*pd;
+    cur.push({k:'r',x:M,y:y-hh,w:tw,h:hh});
+    kol.forEach((k,i)=>{const L=ls[i];L.forEach((t,j)=>cur.push({k:'t',t:t,f:2,s:fs,x:k.a==='r'?x0[i]+k.pw-pd-pw(t,fs)*1.05:x0[i]+pd,y:y-pd-fs-j*lh}));});
+    cur.push({k:'l',x:M,y:y-hh,w:tw});y-=hh;
+  };
+  const baru=()=>{
+    cur=[];pages.push(cur);y=PH-M;
+    if(pages.length===1){cur.push({k:'t',t:pdfSan(judul),f:2,s:13,x:M,y:y-12});y-=20;info.forEach(l=>{const L=pwrap(l,tw,8,2);L.forEach((t,i)=>cur.push({k:'t',t:t,f:1,s:8,x:M,y:y-8-i*10}));y-=L.length*10+1;});y-=5;}
+    else{cur.push({k:'t',t:pdfSan(judul)+' (lanjutan)',f:2,s:9,x:M,y:y-9});y-=16;}
+    kepala();
+  };
+  baru();
+  bar.forEach(r=>{
+    const ls=kol.map((k,i)=>pwrap(r[i],k.pw-2*pd,fs,3)),hh=Math.max.apply(null,ls.map(l=>l.length))*lh+2*pd;
+    if(y-hh<M+16)baru();
+    kol.forEach((k,i)=>ls[i].forEach((t,j)=>cur.push({k:'t',t:t,f:1,s:fs,x:k.a==='r'?x0[i]+k.pw-pd-pw(t,fs):x0[i]+pd,y:y-pd-fs-j*lh})));
+    y-=hh;cur.push({k:'l',x:M,y:y,w:tw});
+  });
+  const N=pages.length,E=t=>t.replace(/([\\()])/g,'\\$1');
+  let out='%PDF-1.4\n',off=[];
+  const obj=(n,b)=>{off[n]=out.length;out+=n+' 0 obj\n'+b+'\nendobj\n';};
+  obj(1,'<< /Type /Catalog /Pages 2 0 R >>');
+  obj(2,'<< /Type /Pages /Kids ['+pages.map((p,i)=>(5+2*i)+' 0 R').join(' ')+'] /Count '+N+' >>');
+  obj(3,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica /Encoding /WinAnsiEncoding >>');
+  obj(4,'<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold /Encoding /WinAnsiEncoding >>');
+  pages.forEach((p,i)=>{
+    p.push({k:'t',t:pdfSan(foot),f:1,s:7,x:M,y:14},{k:'t',t:'Halaman '+(i+1)+' dari '+N,f:1,s:7,x:PW-M-pw('Halaman '+(i+1)+' dari '+N,7),y:14});
+    const c=p.map(o=>o.k==='r'?'0.92 g '+o.x.toFixed(1)+' '+o.y.toFixed(1)+' '+o.w.toFixed(1)+' '+o.h.toFixed(1)+' re f 0 g':o.k==='l'?'0.75 G 0.4 w '+o.x.toFixed(1)+' '+o.y.toFixed(1)+' m '+(o.x+o.w).toFixed(1)+' '+o.y.toFixed(1)+' l S':'BT /F'+o.f+' '+o.s+' Tf '+o.x.toFixed(1)+' '+o.y.toFixed(1)+' Td ('+E(o.t)+') Tj ET').join('\n');
+    obj(5+2*i,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+PW+' '+PH+'] /Resources << /Font << /F1 3 0 R /F2 4 0 R >> >> /Contents '+(6+2*i)+' 0 R >>');
+    obj(6+2*i,'<< /Length '+c.length+' >>\nstream\n'+c+'\nendstream');
+  });
+  const n=5+2*N,xr=out.length;
+  out+='xref\n0 '+n+'\n0000000000 65535 f \n';for(let i=1;i<n;i++)out+=String(off[i]).padStart(10,'0')+' 00000 n \n';
+  out+='trailer\n<< /Size '+n+' /Root 1 0 R >>\nstartxref\n'+xr+'\n%%EOF';
+  return new Blob([Uint8Array.from(out,c=>c.charCodeAt(0))],{type:'application/pdf'});
+}
+function unduhBlob(blob,nama){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nama;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);}
+async function xlsBuat(lembar,nama){
+  await muat(XLS,()=>window.XLSX);
+  const wb=XLSX.utils.book_new();
+  lembar.forEach(l=>{const ws=XLSX.utils.aoa_to_sheet(l.aoa);ws['!cols']=l.aoa[0].map((_,i)=>({wch:Math.min(46,Math.max(8,...l.aoa.map(r=>String(r[i]==null?'':r[i]).length))+2)}));XLSX.utils.book_append_sheet(wb,ws,l.nama);});
+  XLSX.writeFile(wb,nama);
+}
+const r1=x=>Math.round(x*10)/10,tgl8=k=>{k=String(k||'');return k.length===8?k.slice(6)+'-'+k.slice(4,6)+'-'+k.slice(0,4):'';},stamp=()=>{const d=new Date(),p=n=>String(n).padStart(2,'0');return d.getFullYear()+'-'+p(d.getMonth()+1)+'-'+p(d.getDate())+'_'+p(d.getHours())+p(d.getMinutes());};
+const nmFile=s=>String(s).replace(/[^A-Za-z0-9]+/g,'_').replace(/^_+|_+$/g,'').slice(0,40);
+function xpBar(s){return '<div class="bar xp"><button class="btn" data-xp="xls" data-xs="'+s+'">Unduh Excel</button><button class="btn" data-xp="pdf" data-xs="'+s+'">Unduh PDF</button></div><p class="note">Isi file mengikuti pencarian yang sedang dipakai.</p>';}
+function dataFresh(){
+  const q=$('#cari').value.trim().toUpperCase(),B=[],tot={};
+  D.orders.forEach(o=>{
+    if(buyer&&bKey(o)!==buyer)return;
+    const P=prog(o),ds=o.rows.map(dsg).filter((x,i,a)=>x&&a.indexOf(x)===i),dm=q&&ds.some(x=>x.toUpperCase().indexOf(q)>=0),nh=!buyer&&q&&bNama(o).toUpperCase().indexOf(q)>=0;
+    (!q||dm||nh?P.rs:P.rs.filter(r=>r.code.indexOf(q)>=0)).forEach(r=>{
+      const st=r.cl?(r.got>=r.qty*.9?'Close':'Close, kurang '+fmt(r.qty-r.got)+' '+uS(r.u)):stat(r)[1],t=tot[r.u]||(tot[r.u]={q:0,g:0});t.q+=r.qty;t.g+=r.got;
+      B.push([bNama(o),o.op||o.id||'',o.contract||'',o.dest||'',o.shipment||'',ds.join('; '),r.code,uS(r.u),r1(r.qty),r1(r.got),r.p||0,r1(Math.max(0,r.qty-r.got)),r1(Math.max(0,r.got-r.qty)),r.qty?r1(r.got/r.qty*100):0,st,r.d||'',r.k?r1(r.k.L):'',r.k?r1(r.k.R):'',r.k?r1(r.k.X):'',r.cl?tgl8(r.cl.replace(/-/g,'')):'']);
+    });
+  });
+  const ts=D.src.map(s=>s.up||0).filter(Boolean),ket=['Data stock fresh'+(buyer&&B.length?': '+B[0][0]:': semua buyer'),q?'Pencarian: '+q:'Tanpa pencarian (semua data)','Jumlah: '+B.length+' kode. '+Object.keys(tot).map(u=>'Order '+fmt(tot[u].q)+' '+uS(u)+', sudah ada '+fmt(tot[u].g)+' '+uS(u)).join('; '),ts.length?'Data hasil diunggah terakhir '+tUp(Math.max.apply(null,ts)):'Waktu unggah data hasil belum tercatat','Diunduh '+tUp(Date.now())];
+  const H=['Buyer','O.P','Kontrak','Tujuan','Kirim','Design','Kode','Satuan','Order','Sudah ada','Pcs','Sisa','Lebih','Capaian (%)','Status','Terakhir masuk','Sudah cek (L)','Belum cek (R)','Tanpa status','Tanggal close'];
+  const pk=[['Buyer',100,'l',0],['O.P',38,'l',1],['Kode',70,'l',6],['Design',95,'l',5],['Order',46,'r',8],['Sudah ada',50,'r',9],['Pcs',34,'r',10],['Sisa',46,'r',11],['Lebih',40,'r',12],['%',34,'r',13],['Status',92,'l',14],['Terakhir masuk',58,'l',15],['L',38,'r',16],['R',40,'r',17]];
+  return {n:B.length,nama:'cek-order_stock-fresh_'+(buyer&&B.length?nmFile(B[0][0])+'_':'')+stamp(),judul:'Cek Order - Data stock fresh',info:ket,
+    lembar:[{nama:'Stock fresh',aoa:[H].concat(B)},{nama:'Info',aoa:ket.map(x=>[x])}],kol:pk.map(c=>({h:c[0],w:c[1],a:c[2]})),bar:B.map(r=>pk.map(c=>r[c[3]]===''||r[c[3]]==null?'':(typeof r[c[3]]==='number'?fmt(r[c[3]]):r[c[3]])))};
+}
+function dataGrade(){
+  const a=$('#cari').value.trim().toUpperCase(),tk=qTok(a),files=gsel?D.grd.filter(s=>s.id===gsel):D.grd,cmp=(x,y)=>x<y?-1:x>y?1:0,BL=['Di bawah 1 tahun','1 sampai 2 tahun','Di atas 2 tahun'];
+  const R=[],Dt=[],tt=[0,0,0];let pcs=0,nr=0;
+  files.forEach(s=>{
+    let rs=gRows(s).filter(o=>gF(o)&&(!tk.length||gHit(o,tk)));
+    if(gsel&&gd)rs=rs.filter(o=>o.m===gd.m&&o.k===gd.k&&o.c===gd.c&&o.b===gd.b);
+    const T=gTot(rs);T.t.forEach((v,i)=>{tt[i]+=conv(v,s.unit,files[0].unit);});pcs+=T.p;nr+=rs.length;
+    gAgg(rs).sort((x,y)=>(+x.m-+y.m)||cmp(x.m,y.m)||cmp(x.k,y.k)||cmp(x.c,y.c)||x.b-y.b).forEach(x=>R.push([s.name,x.m,x.k,x.c,x.p,r1(x.q),uS(s.unit),BL[x.b],x.d]));
+    rs.slice().sort((x,y)=>cmp(x.f[0],y.f[0])||tglKey(x.f[1])-tglKey(y.f[1])).forEach(o=>Dt.push([s.name,o.f[0],o.f[2],o.f[3],o.f[4],o.f[5],o.f[6],o.f[7],o.bn,o.p,r1(o.q),uS(s.unit),BL[o.b],o.f[1]]));
+  });
+  const ft=[];if(a)ft.push('Pencarian: '+a);
+  [['sb','S.bin'],['dr','Doc Reff'],['kd','Kd. Order'],['m','Material'],['gr','Grade'],['c','Color'],['lot','Lot']].forEach(p=>{if(GF[p[0]])ft.push(p[1]+': '+GF[p[0]]);});
+  if(GF.du!==''&&GF.du!=null)ft.push('Duration: '+BL[+GF.du]);if(GF.from||GF.to)ft.push('Trans. Date '+(GF.from?'dari '+tgl8(GF.from):'')+(GF.to?' sampai '+tgl8(GF.to):''));
+  const sc=gsel?files[0].name+(gd?', Material '+gd.m+', Kd. Order '+gd.k+', Color '+gd.c+', '+BS[gd.b]:''):'Semua stock grade',u0=files.length?uS(files[0].unit):'';
+  const ket=['Data stock grade: '+sc,ft.length?ft.join('; '):'Tanpa pencarian atau filter (semua data)','Jumlah: '+fmt(nr)+' baris, '+fmt(pcs)+' pcs. '+BS.map((b,i)=>b+' '+fmt(tt[i])+' '+u0).join('; '),'Diunduh '+tUp(Date.now())];
+  const pm=!!(gsel&&gd);
+  const pk=pm?[['Stock grade',90,'l',0],['S.bin',50,'l',1],['Doc Reff',70,'l',2],['Grade',36,'l',3],['Kd. Order',60,'l',4],['Material',60,'l',5],['Color',50,'l',6],['Lot',40,'l',7],['Bun',34,'l',8],['Pcs',34,'r',9],['Qty',48,'r',10],['Trans. Date',56,'l',13]]:[['Stock grade',140,'l',0],['Material',80,'l',1],['Kd. Order',80,'l',2],['Color',80,'l',3],['Pcs',50,'r',4],['Qty',70,'r',5],['Satuan',40,'l',6],['Duration',100,'l',7],['Trans. Date terakhir',80,'l',8]];
+  const src=pm?Dt:R;
+  return {n:pm?Dt.length:R.length,nama:'cek-order_stock-grade_'+(gsel?nmFile(files[0].name)+'_':'')+stamp(),judul:'Cek Order - Data stock grade',info:ket,
+    lembar:[{nama:'Ringkasan',aoa:[['Stock grade','Material','Kd. Order','Color','Pcs','Qty','Satuan','Duration','Trans. Date terakhir']].concat(R)},{nama:'Detail',aoa:[['Stock grade','S.bin','Doc Reff','Grade','Kd. Order','Material','Color','Lot','Bun','Pcs','Qty','Satuan','Duration','Trans. Date']].concat(Dt)},{nama:'Info',aoa:ket.map(x=>[x])}],
+    kol:pk.map(c=>({h:c[0],w:c[1],a:c[2]})),bar:src.map(r=>pk.map(c=>r[c[3]]===''||r[c[3]]==null?'':(typeof r[c[3]]==='number'?fmt(r[c[3]]):r[c[3]])))};
+}
+/*/X*/
 async function jalan(fn){try{msg('Membaca file...');const r=await fn();save();render();msg(r.t||r,r.w);}catch(e){msg(e.message||'Gagal membaca file.',1);}}
 $('#fpdf').addEventListener('change',e=>{const fs=[].slice.call(e.target.files);e.target.value='';if(!fs.length)return;
   jalan(async()=>{const out=[];let w=false;for(const f of fs){const r=await tambahPdf(f);out.push(r.t);w=w||r.w;}return {t:out.join(' '),w:w};});});
@@ -558,6 +666,17 @@ document.querySelector('.wrap').addEventListener('click',e=>{
 });
 $('#src').addEventListener('click',e=>{if(e.target.closest('[data-goto]')){const u=$('#unk');if(u){u.open=true;u.scrollIntoView({behavior:'smooth'});}return;}const b=e.target.closest('[data-dsrc]');if(!b)return;const s=D.src[+b.dataset.dsrc];
   if(s&&confirm('Hapus file hasil '+s.file+'? Jumlah dari file ini tidak lagi dihitung.')){D.src.splice(+b.dataset.dsrc,1);save();render();msg('File hasil dihapus.');}});
+document.querySelector('.wrap').addEventListener('click',async e=>{
+  const b=e.target.closest('[data-xp]');if(!b)return;
+  const pdf=b.dataset.xp==='pdf';
+  try{
+    const x=b.dataset.xs==='stk'?dataFresh():dataGrade();
+    if(!x.n){msg('Tidak ada data untuk diunduh. Ubah pencarian atau filter dulu.',1);return;}
+    msg('Menyiapkan '+(pdf?'PDF':'Excel')+'...');
+    if(pdf)unduhBlob(pdfBuat(x.judul,x.info,x.kol,x.bar,x.judul+' - '+tUp(Date.now())),x.nama+'.pdf');else await xlsBuat(x.lembar,x.nama+'.xlsx');
+    msg((pdf?'PDF':'Excel')+' diunduh: '+x.n+' baris. Nama file '+x.nama+(pdf?'.pdf':'.xlsx')+'.');
+  }catch(err){msg(err.message||'Gagal membuat file.',1);}
+});
 const snap=()=>JSON.stringify(Object.assign({app:'pelacak-order',versi:1,dibuat:new Date().toISOString()},D),null,1);
 function impor(txt){
   let o;try{o=JSON.parse(txt);}catch(e){msg('Isi tidak valid. Pastikan seluruh teks cadangan tertempel.',1);return;}
