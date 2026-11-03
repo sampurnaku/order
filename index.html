@@ -687,7 +687,7 @@ function dataPacking(){
     if(gsel&&gd)rs=rs.filter(o=>o.m===gd.m&&o.k===gd.k&&o.c===gd.c&&o.b===gd.b);
     const u=/^Y/i.test(s.unit)?'YARDS':'METER',wd=(String(s.name).match(/\b(\d{2,3})\b(?!\s*\()/)||[])[1]||'';
     rs.forEach(o=>{
-      const gk=(files.length>1?s.id+'|':'')+(o.f[0]||'-'),g=G[gk]||(G[gk]={sb:o.f[0]||'-',u:u,rows:{},q:0,n:0}),
+      const gk=(files.length>1?s.id+'|':'')+(o.f[2]||'-'),g=G[gk]||(G[gk]={sb:o.f[2]||'-',u:u,rows:{},q:0,n:0}),
         lb=o.lb||wd,dg=o.dg||'-',rk=[o.k,o.m,dg,lb,o.c].join('|'),r=g.rows[rk]||(g.rows[rk]={k:o.k,m:o.m,c:o.c,lbr:lb,clr:o.c,design:o.k+' / '+o.m+' / '+dg,pcs:[],q:0,u:u});
       const p=Math.max(0,Math.round(o.p)),q=o.q;
       if(p>0){const e=Math.round(q/p*100)/100;let rest=q;for(let i=0;i<p;i++){const v=i===p-1?Math.round(rest*100)/100:e;r.pcs.push(v);rest-=e;}}
@@ -704,7 +704,7 @@ function dataPacking(){
     g.n=0;g.rows.forEach(r=>{g.n+=r.pcs.length;uni[g.u].n+=r.pcs.length;r.pcs=r.pcs.map(v=>v.toFixed(2));});return g;});
   const d=new Date(),p2=x=>String(x).padStart(2,'0'),h12=d.getHours()%12||12;
   const gl=Object.keys(grades).sort((x,y)=>nCmp(y,x));
-  return {n:n,nama:'packing-list_stock-grade_'+(gsel?nmFile(files[0].name)+'_':'')+stamp(),groups:groups,tot:Object.keys(uni).map(u=>uni[u]),sbin:Object.keys(sb).sort(nCmp),
+  return {n:n,nama:'packing-list_stock-grade_'+(gsel?nmFile(files[0].name)+'_':'')+stamp(),groups:groups,tot:Object.keys(uni).map(u=>uni[u]),sbin:groups.map(g=>g.sb).filter((v,i,x)=>x.indexOf(v)===i),
     grade:gl.join(', ')||'-',tanggal:p2(d.getDate())+'-'+p2(d.getMonth()+1)+'-'+d.getFullYear(),
     cetak:p2(d.getDate())+'-'+p2(d.getMonth()+1)+'-'+d.getFullYear()+' '+p2(h12)+':'+p2(d.getMinutes())+':'+p2(d.getSeconds())+' '+(d.getHours()<12?'AM':'PM')};
 }
