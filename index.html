@@ -95,6 +95,9 @@ details.done{margin-top:18px}details.done>summary{cursor:pointer;font-weight:600
 .dbtn:focus-visible{outline:2px solid var(--acc);outline-offset:2px}
 .gcard td small{display:block;color:var(--mut);font-size:10px;line-height:1.25}
 .gcard.d td,.gcard.d th{text-align:left;overflow-wrap:anywhere}.gcard.d th{white-space:nowrap;overflow-wrap:normal;padding-left:3px;padding-right:3px}.gcard.d td{padding-left:3px;padding-right:3px}.gcard.d td:nth-child(n+7),.gcard.d th:nth-child(n+7){text-align:right}
+.ord[data-oi] tfoot td{font-weight:600;border-top:1px solid var(--line);background:var(--bg);font-size:12px}
+.ord[data-oi] tfoot tr.tt td{border-top:2px solid var(--sil);font-size:13px}.ord[data-oi] tfoot tr.st td{font-weight:500;color:var(--mut)}
+.ord[data-oi] tfoot td:first-child{padding-left:10px}
 details.bk{margin-top:28px}details.bk summary{cursor:pointer;font-weight:600;min-height:32px}
 tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-top:6px}
 .seg{display:flex;margin:14px 0 0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}.seg button{flex:1;min-height:44px;border:0;background:none;color:var(--mut);font:inherit;cursor:pointer;padding:0 8px}.seg button+button{border-left:1px solid var(--line)}.seg button[aria-current=true]{background:var(--acc);color:var(--on);font-weight:600}.seg button:focus-visible{outline:2px solid var(--acc);outline-offset:-4px}
@@ -106,6 +109,7 @@ tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-to
 </style></head><body><div class="wrap">
 <h1>Cek Order</h1>
 <p class="sub">PDF Instruction Sheet (IS) jadi order, Excel jadi jumlah stock fresh yang sudah didapat.</p>
+<p class="note" id="ver">Versi 06-11-2026, stock fresh punya CLR dan total pcs</p>
 <div id="msg" role="status"></div>
 <section id="p-up">
 <div class="seg" role="group" aria-label="Jenis upload"><button data-sub="pdf">Order (PDF)<span id="cpdf"></span></button><button data-sub="xls">Update hasil<span id="cxls"></span></button><button data-sub="grd">Stock grade<span id="cgrd"></span></button></div>
@@ -389,27 +393,31 @@ function buyerList(q){
   return items.map(b=>{
     const os=b.ix.map(i=>D.orders[i]),pr=os.map(prog),u=pr.every(p=>p.u0==='Y')?'Y':'M';
     const tq=pr.reduce((a,p)=>a+conv(p.tq,p.u0,u),0),tg=pr.reduce((a,p)=>a+conv(p.tg,p.u0,u),0),p=tq?tg/tq*100:0,op=os.filter(o=>!oDone(o)).length;
-    return '<button class="by" data-buyer="'+esc(b.k)+'"><div class="oh"><b>'+esc(b.n)+kdTxt(os,4)+'</b><span>'+fmt(p)+'%</span></div><div class="meta"><span>'+os.length+' order'+(op<os.length?', '+op+' berjalan, '+(os.length-op)+' close':'')+'</span><span>'+fmt(tg)+' dari '+fmt(tq)+' '+uS(u)+'</span></div><div class="pg"><i style="width:'+Math.min(100,p)+'%"></i></div></button>';
+    return '<button class="by" data-buyer="'+esc(b.k)+'"><div class="oh"><b>'+esc(b.n)+kdTxt(os,4)+'</b><span>'+fmt(p)+'%</span></div><div class="meta"><span>'+os.length+' order'+(op<os.length?', '+op+' berjalan, '+(os.length-op)+' close':'')+'</span><span>'+fmt(tg)+' dari '+fmt(tq)+' '+uS(u)+'</span><span>'+fmt(pr.reduce((a,x)=>a+x.tp,0))+' pcs</span></div><div class="pg"><i style="width:'+Math.min(100,p)+'%"></i></div></button>';
   }).join('');
 }
 /*/B*/
+function clrFor(code,u){const c={};rollsFor(code,u).forEach(a=>{if(a.ap)return;const k=a.cl||'-';c[k]=(c[k]||0)+(a.p||0);});return c;}
 function prog(o){
-  const u0=o.rows[0].u||'M',rs=o.rows.map((r,i)=>{const u=r.u||'M',v=ambil(r.code,u);return {code:r.code,qty:r.qty,got:v.t,g:v.g,p:v.p,k:v.k,d:v.d,u:u,i:i,cl:r.closed,dg:r.dg};});
+  const u0=o.rows[0].u||'M',rs=o.rows.map((r,i)=>{const u=r.u||'M',v=ambil(r.code,u);return {code:r.code,qty:r.qty,got:v.t,g:v.g,p:v.p,k:v.k,d:v.d,u:u,i:i,cl:r.closed,dg:r.dg,c:clrFor(r.code,u)};});
   const tq=rs.reduce((a,r)=>a+conv(r.qty,r.u,u0),0),tg=rs.reduce((a,r)=>a+conv(r.got,r.u,u0),0);
-  return {u0:u0,rs:rs,tq:tq,tg:tg,p:tq?tg/tq*100:0};
+  return {u0:u0,rs:rs,tq:tq,tg:tg,tp:rs.reduce((a,r)=>a+(r.p||0),0),p:tq?tg/tq*100:0};
 }
 function card(o,oi,cnt,q,open){
   const P=prog(o),ds=o.rows.map(dsg).filter((x,i,a)=>x&&a.indexOf(x)===i),dm=q&&ds.some(x=>x.toUpperCase().indexOf(q)>=0),vis=q&&!dm?P.rs.filter(r=>r.code.indexOf(q)>=0):P.rs;if(q&&!vis.length)return '';
   const body=vis.map(r=>{
     const s=r.cl?(r.got>=r.qty*.9?[2,'Close']:[1,'Close, kurang '+fmt(r.qty-r.got)+' '+uS(r.u)]):stat(r),pc=r.qty?r.got/r.qty*100:0,sx=r.u!==P.u0?' '+uS(r.u):'',gr=Object.keys(r.g).sort().map(k=>'Grade '+k+' '+fmt(r.g[k])).join(', ');
     const hk=r.k&&(r.k.L||r.k.R),rs=hk?' rowspan="2"':'',kt=hk?'<tr'+(r.cl?' class="cl"':'')+'><td colspan="4" class="k2"><span class="ck">Sudah cek (L) '+fmt(r.k.L)+'</span> &nbsp; <span class="cr">Belum cek (R) '+fmt(r.k.R)+'</span>'+(r.k.X?' &nbsp; Tanpa status '+fmt(r.k.X):'')+'</td></tr>':'';
-    return '<tr'+(r.cl?' class="cl"':'')+'><td'+rs+'>'+esc(r.code)+(ds.length>1&&dsg(r)?'<small>Design '+esc(dsg(r))+'</small>':'')+'<small>'+esc(gr)+'</small>'+(r.d?'<small>Terakhir masuk '+esc(r.d)+'</small>':'')+(r.cl?'<small>Close '+esc(r.cl.split('-').reverse().join('-'))+'</small>':'')+(cnt[r.code]>1?'<small>Kode ini juga ada di order lain</small>':'')+'</td><td>'+fmt(r.qty)+sx+'</td><td>'+fmt(r.got)+sx+'</td><td>'+(r.p>0?fmt(r.p):'-')+'</td><td'+(r.got<r.qty*.9?' class="kr"':'')+'>'+(r.got>r.qty?'lebih '+fmt(r.got-r.qty):fmt(r.qty-r.got))+sx+'</td><td'+rs+'>'+fmt(pc)+'%<br><span class="tg s'+s[0]+'">'+s[1]+'</span><div class="mini"><i style="width:'+Math.min(100,pc)+'%"></i></div><button class="btn rb" '+(r.cl?'data-ro':'data-rc')+'="'+oi+':'+r.i+'">'+(r.cl?'Buka kembali':'Tandai close')+'</button></td></tr>'+kt;
+    return '<tr'+(r.cl?' class="cl"':'')+'><td'+rs+'>'+esc(r.code)+(ds.length>1&&dsg(r)?'<small>Design '+esc(dsg(r))+'</small>':'')+'<small>'+esc(gr)+'</small>'+(Object.keys(r.c||{}).length?'<small>CLR '+Object.keys(r.c).sort(nCmp).map(k=>esc(k)+': '+fmt(r.c[k])+' pcs').join(', ')+'</small>':'')+(r.d?'<small>Terakhir masuk '+esc(r.d)+'</small>':'')+(r.cl?'<small>Close '+esc(r.cl.split('-').reverse().join('-'))+'</small>':'')+(cnt[r.code]>1?'<small>Kode ini juga ada di order lain</small>':'')+'</td><td>'+fmt(r.qty)+sx+'</td><td>'+fmt(r.got)+sx+'</td><td>'+(r.p>0?fmt(r.p):'-')+'</td><td'+(r.got<r.qty*.9?' class="kr"':'')+'>'+(r.got>r.qty?'lebih '+fmt(r.got-r.qty):fmt(r.qty-r.got))+sx+'</td><td'+rs+'>'+fmt(pc)+'%<br><span class="tg s'+s[0]+'">'+s[1]+'</span><div class="mini"><i style="width:'+Math.min(100,pc)+'%"></i></div><button class="btn rb" '+(r.cl?'data-ro':'data-rc')+'="'+oi+':'+r.i+'">'+(r.cl?'Buka kembali':'Tandai close')+'</button></td></tr>'+kt;
   }).join('');
+  const sm=(lb,a)=>{const tq=a.reduce((s,r)=>s+conv(r.qty,r.u,P.u0),0),tg=a.reduce((s,r)=>s+conv(r.got,r.u,P.u0),0),tp=a.reduce((s,r)=>s+(r.p||0),0);return '<tr class="'+(lb?'st':'tt')+'"><td>'+(lb?esc(lb)+' ('+a.length+' warna)':'Total'+(a.length<P.rs.length?' hasil cari':'')+' ('+a.length+' warna)')+'</td><td>'+fmt(tq)+'</td><td>'+fmt(tg)+'</td><td>'+fmt(tp)+'</td><td>'+(tg>tq?'lebih '+fmt(tg-tq):fmt(tq-tg))+'</td><td></td></tr>';};
+  const bs=[];vis.forEach(r=>{const b=(String(r.code).match(/^[A-Z]+/)||[''])[0];if(b&&bs.indexOf(b)<0)bs.push(b);});
+  const tfoot='<tfoot>'+(bs.length>1?bs.sort().map(b=>sm(b,vis.filter(r=>String(r.code).indexOf(b)===0&&!/^[A-Z]/.test(String(r.code).slice(b.length,b.length+1))))).join(''):'')+sm('',vis)+'</tfoot>';
   const meta=[['Design',ds.join(', ')],['O.P',o.op||o.id],['Kontrak',o.contract],['Tujuan',o.dest],['Kirim',o.shipment]].filter(x=>x[1]).map(x=>'<span>'+x[0]+' '+esc(x[1])+'</span>').join('');
   const u=uS(P.u0),nc=o.rows.filter(r=>r.closed).length,kR=P.rs.reduce((a,r)=>a+(r.k?conv(r.k.R,r.u,P.u0):0),0);
   const gb=(o.gab||[]).map(g=>'<div class="gb"><span class="tg s1">Kirim gabung</span> '+esc(g.ket)+'</div>').join('');
-  const MT='<div class="meta"><span>'+fmt(P.tg)+' dari '+fmt(P.tq)+' '+u+'</span>'+(nc?'<span>'+nc+' dari '+o.rows.length+' warna close</span>':'')+(kR>0?'<span class="cr">Belum cek (R) '+fmt(kR)+' '+u+'</span>':'')+meta+'</div>'+gb+'';
-  return '<details class="ord" data-oi="'+oi+'"'+(open||q?' open':'')+'><summary><div class="oh"><b>'+esc(bNama(o))+kdTxt([o],3)+(oDone(o)?' <span class="tg s2">Semua warna close</span>':'')+'</b><span>'+fmt(P.p)+'%</span></div><div class="sm">'+MT+'</div><div class="pg"><i style="width:'+Math.min(100,P.p)+'%"></i></div></summary>'+(gb?'<div class="bm">'+gb+'</div>':'')+'<div class="tx"><table><thead><tr><th>Kode</th><th>Order ('+u+')</th><th>Sudah ada ('+u+')</th><th>Pcs</th><th>Sisa ('+u+')</th><th>Capaian</th></tr></thead><tbody>'+body+'</tbody></table></div><div class="ft"><span class="note">File '+esc(o.file||'')+'</span><span><button class="btn" data-del="'+oi+'">Hapus</button></span></div></details>';
+  const MT='<div class="meta"><span>'+fmt(P.tg)+' dari '+fmt(P.tq)+' '+u+'</span><span>'+fmt(P.tp)+' pcs</span>'+(nc?'<span>'+nc+' dari '+o.rows.length+' warna close</span>':'')+(kR>0?'<span class="cr">Belum cek (R) '+fmt(kR)+' '+u+'</span>':'')+meta+'</div>'+gb+'';
+  return '<details class="ord" data-oi="'+oi+'"'+(open||q?' open':'')+'><summary><div class="oh"><b>'+esc(bNama(o))+kdTxt([o],3)+(oDone(o)?' <span class="tg s2">Semua warna close</span>':'')+'</b><span>'+fmt(P.p)+'%</span></div><div class="sm">'+MT+'</div><div class="pg"><i style="width:'+Math.min(100,P.p)+'%"></i></div></summary>'+(gb?'<div class="bm">'+gb+'</div>':'')+'<div class="tx"><table><thead><tr><th>Kode</th><th>Order ('+u+')</th><th>Sudah ada ('+u+')</th><th>Pcs</th><th>Sisa ('+u+')</th><th>Capaian</th></tr></thead><tbody>'+body+'</tbody>'+tfoot+'</table></div><div class="ft"><span class="note">File '+esc(o.file||'')+'</span><span><button class="btn" data-del="'+oi+'">Hapus</button></span></div></details>';
 }
 function render(){
   renderG();
@@ -760,12 +768,12 @@ function dataFresh(){
     const P=prog(o),ds=o.rows.map(dsg).filter((x,i,a)=>x&&a.indexOf(x)===i),dm=q&&ds.some(x=>x.toUpperCase().indexOf(q)>=0),nh=!buyer&&q&&bNama(o).toUpperCase().indexOf(q)>=0;
     (!q||dm||nh?P.rs:P.rs.filter(r=>r.code.indexOf(q)>=0)).forEach(r=>{
       const st=r.cl?(r.got>=r.qty*.9?'Close':'Close, kurang '+fmt(r.qty-r.got)+' '+uS(r.u)):stat(r)[1],t=tot[r.u]||(tot[r.u]={q:0,g:0});t.q+=r.qty;t.g+=r.got;RW.push({code:r.code,u:r.u,rw:rollsFor(r.code,r.u)});
-      B.push([bNama(o),o.op||o.id||'',o.contract||'',o.dest||'',o.shipment||'',ds.join('; '),r.code,uS(r.u),r1(r.qty),r1(r.got),r.p||0,r1(Math.max(0,r.qty-r.got)),r1(Math.max(0,r.got-r.qty)),r.qty?r1(r.got/r.qty*100):0,st,r.d||'',r.k?r1(r.k.L):'',r.k?r1(r.k.R):'',r.k?r1(r.k.X):'',r.cl?tgl8(r.cl.replace(/-/g,'')):'']);
+      B.push([bNama(o),o.op||o.id||'',o.contract||'',o.dest||'',o.shipment||'',ds.join('; '),r.code,uS(r.u),r1(r.qty),r1(r.got),r.p||0,r1(Math.max(0,r.qty-r.got)),r1(Math.max(0,r.got-r.qty)),r.qty?r1(r.got/r.qty*100):0,st,r.d||'',r.k?r1(r.k.L):'',r.k?r1(r.k.R):'',r.k?r1(r.k.X):'',r.cl?tgl8(r.cl.replace(/-/g,'')):'',Object.keys(r.c||{}).sort(nCmp).map(k=>k+': '+fmt(r.c[k])+' pcs').join('; ')]);
     });
   });
-  const ts=D.src.map(s=>s.up||0).filter(Boolean),ket=['Data stock fresh'+(buyer&&B.length?': '+B[0][0]:': semua buyer'),q?'Pencarian: '+q:'Tanpa pencarian (semua data)','Jumlah: '+B.length+' kode. '+Object.keys(tot).map(u=>'Order '+fmt(tot[u].q)+' '+uS(u)+', sudah ada '+fmt(tot[u].g)+' '+uS(u)).join('; '),ts.length?'Data hasil diunggah terakhir '+tUp(Math.max.apply(null,ts)):'Waktu unggah data hasil belum tercatat','Diunduh '+tUp(Date.now())];
-  const H=['Buyer','O.P','Kontrak','Tujuan','Kirim','Design','Kode','Satuan','Order','Sudah ada','Pcs','Sisa','Lebih','Capaian (%)','Status','Terakhir masuk','Sudah cek (L)','Belum cek (R)','Tanpa status','Tanggal close'];
-  const pk=[['Buyer',100,'l',0],['O.P',38,'l',1],['Kode',70,'l',6],['Design',95,'l',5],['Order',46,'r',8],['Sudah ada',50,'r',9],['Pcs',34,'r',10],['Sisa',46,'r',11],['Lebih',40,'r',12],['%',34,'r',13],['Status',92,'l',14],['Terakhir masuk',58,'l',15],['L',38,'r',16],['R',40,'r',17]];
+  const ts=D.src.map(s=>s.up||0).filter(Boolean),ket=['Data stock fresh'+(buyer&&B.length?': '+B[0][0]:': semua buyer'),q?'Pencarian: '+q:'Tanpa pencarian (semua data)','Jumlah: '+B.length+' kode, '+fmt(B.reduce((a,r)=>a+(r[10]||0),0))+' pcs. '+Object.keys(tot).map(u=>'Order '+fmt(tot[u].q)+' '+uS(u)+', sudah ada '+fmt(tot[u].g)+' '+uS(u)).join('; '),ts.length?'Data hasil diunggah terakhir '+tUp(Math.max.apply(null,ts)):'Waktu unggah data hasil belum tercatat','Diunduh '+tUp(Date.now())];
+  const H=['Buyer','O.P','Kontrak','Tujuan','Kirim','Design','Kode','Satuan','Order','Sudah ada','Pcs','Sisa','Lebih','Capaian (%)','Status','Terakhir masuk','Sudah cek (L)','Belum cek (R)','Tanpa status','Tanggal close','CLR (pcs per CLR)'];
+  const pk=[['Buyer',100,'l',0],['O.P',38,'l',1],['Kode',70,'l',6],['Design',95,'l',5],['Order',46,'r',8],['Sudah ada',50,'r',9],['Pcs',34,'r',10],['CLR',80,'l',20],['Sisa',46,'r',11],['Lebih',40,'r',12],['%',34,'r',13],['Status',92,'l',14],['Terakhir masuk',58,'l',15],['L',38,'r',16],['R',40,'r',17]];
   return {raw:RW,n:B.length,nama:'cek-order_stock-fresh_'+(buyer&&B.length?nmFile(B[0][0])+'_':'')+stamp(),judul:'Cek Order - Data stock fresh',info:ket,
     lembar:[{nama:'Stock fresh',aoa:[H].concat(B)},{nama:'Info',aoa:ket.map(x=>[x])}],kol:pk.map(c=>({h:c[0],w:c[1],a:c[2]})),bar:B.map(r=>pk.map(c=>r[c[3]]===''||r[c[3]]==null?'':(typeof r[c[3]]==='number'?fmt(r[c[3]]):r[c[3]])))};
 }
