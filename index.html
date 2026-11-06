@@ -197,7 +197,7 @@ function gabCodes(seg){
 function urai(txt){
   const t=txt.replace(/\s+/g,' ');
   const g=re=>{const m=t.match(re);return m?m[1].trim():'';};
-  const meta={op:g(/O\.P\s*:\s*(\S+)/),buyer:g(/BUYER\s*:\s*(.+?)\s+CONTRACT NO/),contract:g(/CONTRACT NO\.?\s*:\s*(\S+)/),dest:g(/DESTINATION\s*:\s*(.+?)\s+INDENT NO/),shipment:g(/SHIPMENT\s*:\s*(\d{2}\/\d{2}\/\d{4})/),isNo:g(/DIBUAT OLEH\s+\S+\s+FOLLOW UP\s*:\s*\S+\s+(\d{4,8})/)};
+  const meta={op:g(/O\.P\s*:\s*(\S+)/),buyer:g(/BUYER\s*:\s*(.+?)\s+CONTRACT NO/),contract:g(/CONTRACT NO\.?\s*:\s*(\S+)/),dest:g(/DESTINATION\s*:\s*(.+?)\s+INDENT NO/),shipment:g(/SHIPMENT\s*:\s*(\d{2}\/\d{2}\/\d{4})/),fu:g(/FOLLOW UP\s*:\s*(.+?)\s+SHIPMENT\s*:/),isNo:g(/DIBUAT OLEH\s+\S+\s+FOLLOW UP\s*:\s*\S+\s+(\d{4,8})/)};
   const tm=t.match(/T\s?O\s?T\s?A\s?L\s+(\d+)\s+([\d.,]+)/);
   const body=tm?t.slice(0,tm.index):t;
   const re=/(KODE\s+|R\/O\s+)?\b((?:[A-Z]{2,}[A-Z0-9]*\d[A-Z0-9]*|LC[A-Z]{2,})(?:\.?\s+[A-Z][A-Z]*(?:\s+[A-Z][A-Z]*)*)?)\s*\/\s*(\d{4,6})\s*-/g,hits=[];let m,cols=0;
@@ -251,7 +251,7 @@ async function tambahPdf(f){
   u.rows.forEach(r=>{const k=pr.des.findIndex((d,j)=>!dus[j]&&nk(d.code)===nk(r.code));if(k>=0){dus[k]=1;if(pr.des[k].dg)r.dg=pr.des[k].dg;}});
   if(!u.rows.length)throw new Error(f.name+': tidak ada kode order yang terbaca. Pastikan ini PDF Instruction Sheet.');
   const id=u.op||f.name,i=D.orders.findIndex(o=>o.id===id||(u.isNo&&o.isNo===u.isNo));
-  const o={id:id,op:u.op,buyer:u.buyer,contract:u.contract,dest:u.dest,shipment:u.shipment,isNo:u.isNo,gab:u.gab,file:f.name,rows:u.rows};
+  const o={id:id,op:u.op,buyer:u.buyer,contract:u.contract,dest:u.dest,shipment:u.shipment,fu:u.fu,isNo:u.isNo,gab:u.gab,file:f.name,rows:u.rows};
   if(i>=0){const used={};o.rows.forEach(r=>{const k=D.orders[i].rows.findIndex((x,j)=>x.code===r.code&&x.closed&&!used[j]);if(k>=0){used[k]=1;r.closed=D.orders[i].rows[k].closed;}});D.orders[i]=o;}else D.orders.push(o);
   const q=u.rows.reduce((a,r)=>a+r.qty,0);let w='';
   if(u.tot&&(u.tot.q!==q||u.tot.n!==u.cols))w=' Peringatan: total di PDF '+u.tot.n+' warna, '+fmt(u.tot.q)+', hasil baca '+u.cols+' warna, '+fmt(q)+'. Periksa tabelnya.';
@@ -392,8 +392,8 @@ function buyerList(q){
   if(!items.length)return '<p class="note">Tidak ada buyer atau kode yang cocok.</p>';
   return items.map(b=>{
     const os=b.ix.map(i=>D.orders[i]),pr=os.map(prog),u=pr.every(p=>p.u0==='Y')?'Y':'M';
-    const tq=pr.reduce((a,p)=>a+conv(p.tq,p.u0,u),0),tg=pr.reduce((a,p)=>a+conv(p.tg,p.u0,u),0),p=tq?tg/tq*100:0,op=os.filter(o=>!oDone(o)).length;
-    return '<button class="by" data-buyer="'+esc(b.k)+'"><div class="oh"><b>'+esc(b.n)+kdTxt(os,4)+'</b><span>'+fmt(p)+'%</span></div><div class="meta"><span>'+os.length+' order'+(op<os.length?', '+op+' berjalan, '+(os.length-op)+' close':'')+'</span><span>'+fmt(tg)+' dari '+fmt(tq)+' '+uS(u)+'</span><span>'+fmt(pr.reduce((a,x)=>a+x.tp,0))+' pcs</span></div><div class="pg"><i style="width:'+Math.min(100,p)+'%"></i></div></button>';
+    const tq=pr.reduce((a,p)=>a+conv(p.tq,p.u0,u),0),tg=pr.reduce((a,p)=>a+conv(p.tg,p.u0,u),0),p=tq?tg/tq*100:0,op=os.filter(o=>!oDone(o)).length,fus=os.map(o=>o.fu).filter((x,i,a)=>x&&a.indexOf(x)===i);
+    return '<button class="by" data-buyer="'+esc(b.k)+'"><div class="oh"><b>'+esc(b.n)+kdTxt(os,4)+'</b><span>'+fmt(p)+'%</span></div><div class="meta"><span>'+os.length+' order'+(op<os.length?', '+op+' berjalan, '+(os.length-op)+' close':'')+'</span><span>'+fmt(tg)+' dari '+fmt(tq)+' '+uS(u)+'</span><span>'+fmt(pr.reduce((a,x)=>a+x.tp,0))+' pcs</span>'+(fus.length?'<span>Follow up '+esc(fus.join(', '))+'</span>':'')+'</div><div class="pg"><i style="width:'+Math.min(100,p)+'%"></i></div></button>';
   }).join('');
 }
 /*/B*/
@@ -413,7 +413,7 @@ function card(o,oi,cnt,q,open){
   const sm=(lb,a)=>{const tq=a.reduce((s,r)=>s+conv(r.qty,r.u,P.u0),0),tg=a.reduce((s,r)=>s+conv(r.got,r.u,P.u0),0),tp=a.reduce((s,r)=>s+(r.p||0),0);return '<tr class="'+(lb?'st':'tt')+'"><td>'+(lb?esc(lb)+' ('+a.length+' warna)':'Total'+(a.length<P.rs.length?' hasil cari':'')+' ('+a.length+' warna)')+'</td><td>'+fmt(tq)+'</td><td></td><td>'+fmt(tg)+'</td><td>'+fmt(tp)+'</td><td>'+(tg>tq?'lebih '+fmt(tg-tq):fmt(tq-tg))+'</td><td></td></tr>';};
   const bs=[];vis.forEach(r=>{const b=(String(r.code).match(/^[A-Z]+/)||[''])[0];if(b&&bs.indexOf(b)<0)bs.push(b);});
   const tfoot='<tfoot>'+(bs.length>1?bs.sort().map(b=>sm(b,vis.filter(r=>String(r.code).indexOf(b)===0&&!/^[A-Z]/.test(String(r.code).slice(b.length,b.length+1))))).join(''):'')+sm('',vis)+'</tfoot>';
-  const meta=[['Design',ds.join(', ')],['O.P',o.op||o.id],['Kontrak',o.contract],['Tujuan',o.dest],['Kirim',o.shipment]].filter(x=>x[1]).map(x=>'<span>'+x[0]+' '+esc(x[1])+'</span>').join('');
+  const meta=[['Design',ds.join(', ')],['O.P',o.op||o.id],['Kontrak',o.contract],['Follow up',o.fu],['Tujuan',o.dest],['Kirim',o.shipment]].filter(x=>x[1]).map(x=>'<span>'+x[0]+' '+esc(x[1])+'</span>').join('');
   const u=uS(P.u0),nc=o.rows.filter(r=>r.closed).length,kR=P.rs.reduce((a,r)=>a+(r.k?conv(r.k.R,r.u,P.u0):0),0);
   const gb=(o.gab||[]).map(g=>'<div class="gb"><span class="tg s1">Kirim gabung</span> '+esc(g.ket)+'</div>').join('');
   const MT='<div class="meta"><span>'+fmt(P.tg)+' dari '+fmt(P.tq)+' '+u+'</span><span>'+fmt(P.tp)+' pcs</span>'+(nc?'<span>'+nc+' dari '+o.rows.length+' warna close</span>':'')+(kR>0?'<span class="cr">Belum cek (R) '+fmt(kR)+' '+u+'</span>':'')+meta+'</div>'+gb+'';
