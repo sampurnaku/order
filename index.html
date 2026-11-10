@@ -600,7 +600,7 @@ function pdfPacking(P){
   const cw=[22,108,28,56,0,106];cw[4]=tw-cw[0]-cw[1]-cw[2]-cw[3]-cw[5];
   const cx=[M];cw.forEach((w,i)=>cx.push(cx[i]+w));
   const PER=10,pieceW=(cw[4]-2*pad)/PER;
-  const pages=[];let cur,y;
+  const pages=[];let cur,y,lst=false;
   const T=(t,f,s,x,yy)=>cur.push({k:'t',t:pdfSan(t),f:f,s:s,x:x,y:yy});
   const L=(x1,y1,x2,y2)=>cur.push({k:'m',x1:x1,y1:y1,x2:x2,y2:y2});
   const rt=(t,f,s,xr,yy)=>T(t,f,s,xr-(f===3?tw_(pdfSan(t),s):pw(pdfSan(t),s)),yy);
@@ -608,7 +608,8 @@ function pdfPacking(P){
   const kepala=()=>{
     cur=[];pages.push(cur);y=PH-M;
     ctr('DETAIL PACKING LIST',3,13,M,PW-M,y-12);y-=34;
-    T('Tanggal: '+P.tanggal+(P.plant?'     Plant: '+P.plant:''),1,9,M,y);rt('Grade: '+P.grade,1,9,PW-M,y);y-=8;
+    T('Tanggal: '+P.tanggal,1,9,M,y);rt('Grade: '+P.grade,1,9,PW-M,y);y-=8;
+    if(lst){y-=6;L(M,y,PW-M,y);y-=14;P.top=y;return;}
     const h=15;L(M,y,PW-M,y);L(M,y-h,PW-M,y-h);
     L(M,y,M,y-h);cx.slice(1).forEach(x=>L(x,y,x,y-h));
     ['NO.','DESIGN NO.','LBR','CLR','PIECE LENGTH','TOTAL'].forEach((t,i)=>ctr(t,2,7,cx[i],cx[i+1],y-10.5));
@@ -619,7 +620,7 @@ function pdfPacking(P){
   kepala();
   const FOOT=34;
   let segTop=P.top;
-  const brk=()=>{vert(segTop,y);L(M,y,PW-M,y);kepala();segTop=P.top;};
+  const brk=()=>{if(!lst){vert(segTop,y);L(M,y,PW-M,y);}kepala();segTop=P.top;};
   const ensure=h=>{if(y-h<M+FOOT)brk();};
   P.groups.forEach((g,gi)=>{
     ensure(lh*3+2*pad);
@@ -645,20 +646,20 @@ function pdfPacking(P){
   });
   /* grand total */
   ensure(20);P.tot.forEach(t=>{
-    ensure(20);const h=18;L(M,y,M,y-h);L(PW-M,y,PW-M,y-h);L(cx[5],y,cx[5],y-h);
+    ensure(20);const h=18;L(M,y,M,y-h);L(PW-M,y,PW-M,y-h);
     T(P.tot.length>1?'GRAND TOTAL ('+t.u+') :':'GRAND TOTAL :',2,8,M+pad,y-12);
     rt(nf2(t.q)+' '+t.u+' = '+fmt(t.n)+' Roll',2,8,PW-M-pad,y-12);y-=h;L(M,y,PW-M,y);});
-  y-=18;
+  lst=true;vert(segTop,y);y-=18;
   /* daftar S.bin */
   if(P.sbin.length){ensure(30);T(P.listLabel||'List Karton :',2,9,M+14,y-9);y-=24;}
   const items=P.sbin.map((s,i)=>(i+1)+'. '+s);
-  const colW=Math.max(100,...items.map(t=>pw(pdfSan(t),9)+30)),nc=Math.max(1,Math.floor((tw-14)/colW));
-  for(let i=0;i<items.length;i+=nc){ensure(16);items.slice(i,i+nc).forEach((t,j)=>T(t,1,9,M+14+j*colW,y-9));y-=16;}
+  const nc=5,colW=(tw-14)/nc,mx=Math.max(1,...items.map(t=>pw(pdfSan(t),9))),lf=Math.min(9,9*(colW-8)/mx);
+  for(let i=0;i<items.length;i+=nc){ensure(16);items.slice(i,i+nc).forEach((t,j)=>T(t,1,lf,M+14+j*colW,y-9));y-=16;}
   /* tanda tangan */
   y-=14;ensure(80);
-  const sy=y,cL=PW*0.22,cM=PW*0.42,cR=PW*0.78;
+  const sy=y,cL=PW*0.17,cM=PW*0.40,cR=PW*0.80;
   ctr('Barang Telah Diperiksa Oleh',1,7,cL-30,cM+30,sy-8);
-  ctr('Foreman Gudang Final',1,7,cL-45,cL+45,sy-17);ctr('Foreman Gudang Packing',1,7,cM-45,cM+45,sy-17);ctr('Dibuat Oleh',1,7,cR-45,cR+45,sy-13);
+  ctr('Foreman Gudang Final',1,7,cL-45,cL+45,sy-22);ctr('Foreman Gudang Packing',1,7,cM-45,cM+45,sy-22);ctr('Dibuat Oleh',1,7,cR-45,cR+45,sy-22);
   [cL,cM,cR].forEach(c=>{L(c-32,sy-58,c+32,sy-58);ctr('Nama Jelas',1,7,c-45,c+45,sy-67);});
   /* PDF */
   const N=pages.length,E=t=>t.replace(/([\\()])/g,'\\$1');
