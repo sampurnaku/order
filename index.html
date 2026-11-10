@@ -227,7 +227,7 @@ function gabCodes(seg){
 function urai(txt){
   const t=txt.replace(/\s+/g,' ');
   const g=re=>{const m=t.match(re);return m?m[1].trim():'';};
-  const meta={op:g(/O\.P\s*:\s*(\S+)/),buyer:g(/BUYER\s*:\s*(.+?)\s+CONTRACT NO/),contract:g(/CONTRACT NO\.?\s*:\s*(\S+)/),dest:g(/DESTINATION\s*:\s*(.+?)\s+INDENT NO/),shipment:g(/SHIPMENT\s*:\s*(\d{2}\/\d{2}\/\d{4})/),fu:g(/FOLLOW UP\s*:\s*(.+?)\s+SHIPMENT\s*:/),isNo:g(/DIBUAT OLEH\s+\S+\s+FOLLOW UP\s*:\s*\S+\s+(\d{4,8})/)||g(/FOLLOW UP\s*:[^:]*?\s(\d{6})\s*$/)};
+  const meta={op:g(/O\.P\s*:\s*(\S+)/),buyer:g(/BUYER\s*:\s*(.+?)\s+CONTRACT NO/),contract:g(/CONTRACT NO\.?\s*:\s*(\S+)/),dest:g(/DESTINATION\s*:\s*(.+?)\s+INDENT NO/),shipment:g(/SHIPMENT\s*:\s*(\d{2}\/\d{2}\/\d{4})/),fu:g(/FOLLOW UP\s*:\s*(.+?)\s+SHIPMENT\s*:/),isNo:g(/DIBUAT OLEH\s+(?:\S+\s+)?FOLLOW UP\s*:\s*.*?\s(\d{6})(?=\s|$)/)||g(/DIBUAT OLEH\s+\S+\s+FOLLOW UP\s*:\s*\S+\s+(\d{4,8})/)||g(/FOLLOW UP\s*:[^:]*?\s(\d{6})\s*$/)};
   const tm=t.match(/T\s?O\s?T\s?A\s?L\s+(\d+)\s+([\d.,]+)/);
   const body=tm?t.slice(0,tm.index):t;
   const re=/(KODE\s+|R\/O\s+)?\b((?:[A-Z]{2,}[A-Z0-9]*\d[A-Z0-9]*|LC[A-Z]{2,})(?:\.?\s+[A-Z][A-Z]*(?:\s+[A-Z][A-Z]*)*)?)\s*\/\s*(KNT\.\s*\d{1,6}|\d{3,6})\s*-/g,hits=[];let m,cols=0;
@@ -237,6 +237,7 @@ function urai(txt){
     const seg=body.slice(h.i,k+1<hits.length?hits[k+1].s:body.length);
     const q=seg.match(/(\d+)\s+([\d.,]+)\s+([\d.,]+)\s*(MTR|YARDS?|YDS?|KGS?)\b/i);
     if(q&&num(q[3])>0){rows.push({code:h.code,mat:h.mat,qty:num(q[3]),u:/^Y/i.test(q[4])?'Y':/^K/i.test(q[4])?'K':'M'});cols+=+q[1];}
+    else if(!q){const z=seg.match(/(?:^|\s)(?:\d+\s+)?0\s+0\s*(MTR|YARDS?|YDS?|KGS?)\b/i);if(z)rows.push({code:h.code,mat:h.mat,qty:0,u:/^Y/i.test(z[1])?'Y':/^K/i.test(z[1])?'K':'M'});}
   });
   meta.gab=[];const gt=t.slice(tm?tm.index:0),gr=/KIRIM\s+GABUNG|GABUNG\s+KIRIM/gi,ed=/\s+-\s|\s+SHIPPING\s+REMARK|\s+DIBUAT\s+OLEH|\s+NO\.\s*FORM/;let gm;
   while((gm=gr.exec(gt))){const a=gt.slice(0,gm.index),b=Math.max(a.lastIndexOf(' - ')+3,a.search(/REMARK\s*:\s*(?!.*REMARK\s*:)/)>=0?a.search(/REMARK\s*:\s*(?!.*REMARK\s*:)/):0),z=gt.slice(gm.index).search(ed);
@@ -279,6 +280,7 @@ async function tambahPdf(f){
   const pr=await teksPdf(f),u=urai(pr.t),dus={};
   const nk=s=>String(s).replace(/[\s.]/g,'').toUpperCase();
   u.rows.forEach(r=>{const k=pr.des.findIndex((d,j)=>!dus[j]&&nk(d.code)===nk(r.code));if(k>=0){dus[k]=1;if(pr.des[k].dg)r.dg=pr.des[k].dg;}});
+  if(!u.isNo){const m=f.name.match(/Instruction[\s_-]*Sheet[\s_-]*(\d{5,8})/i);if(m)u.isNo=m[1];}
   u.rows=mergeDup(u.rows);
   if(!u.rows.length)throw new Error(f.name+': tidak ada kode order yang terbaca. Pastikan ini PDF Instruction Sheet.');
   const id=u.op||f.name,i=D.orders.findIndex(o=>o.id===id||(u.isNo&&o.isNo===u.isNo));
