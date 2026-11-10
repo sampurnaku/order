@@ -227,16 +227,16 @@ function gabCodes(seg){
 function urai(txt){
   const t=txt.replace(/\s+/g,' ');
   const g=re=>{const m=t.match(re);return m?m[1].trim():'';};
-  const meta={op:g(/O\.P\s*:\s*(\S+)/),buyer:g(/BUYER\s*:\s*(.+?)\s+CONTRACT NO/),contract:g(/CONTRACT NO\.?\s*:\s*(\S+)/),dest:g(/DESTINATION\s*:\s*(.+?)\s+INDENT NO/),shipment:g(/SHIPMENT\s*:\s*(\d{2}\/\d{2}\/\d{4})/),fu:g(/FOLLOW UP\s*:\s*(.+?)\s+SHIPMENT\s*:/),isNo:g(/DIBUAT OLEH\s+\S+\s+FOLLOW UP\s*:\s*\S+\s+(\d{4,8})/)};
+  const meta={op:g(/O\.P\s*:\s*(\S+)/),buyer:g(/BUYER\s*:\s*(.+?)\s+CONTRACT NO/),contract:g(/CONTRACT NO\.?\s*:\s*(\S+)/),dest:g(/DESTINATION\s*:\s*(.+?)\s+INDENT NO/),shipment:g(/SHIPMENT\s*:\s*(\d{2}\/\d{2}\/\d{4})/),fu:g(/FOLLOW UP\s*:\s*(.+?)\s+SHIPMENT\s*:/),isNo:g(/DIBUAT OLEH\s+\S+\s+FOLLOW UP\s*:\s*\S+\s+(\d{4,8})/)||g(/FOLLOW UP\s*:[^:]*?\s(\d{6})\s*$/)};
   const tm=t.match(/T\s?O\s?T\s?A\s?L\s+(\d+)\s+([\d.,]+)/);
   const body=tm?t.slice(0,tm.index):t;
-  const re=/(KODE\s+|R\/O\s+)?\b((?:[A-Z]{2,}[A-Z0-9]*\d[A-Z0-9]*|LC[A-Z]{2,})(?:\.?\s+[A-Z][A-Z]*(?:\s+[A-Z][A-Z]*)*)?)\s*\/\s*(\d{3,6})\s*-/g,hits=[];let m,cols=0;
-  while((m=re.exec(body)))if(!m[1])hits.push({code:m[2].replace(/\s+/g,' ').trim(),mat:m[3],s:m.index,i:m.index+m[0].length});
+  const re=/(KODE\s+|R\/O\s+)?\b((?:[A-Z]{2,}[A-Z0-9]*\d[A-Z0-9]*|LC[A-Z]{2,})(?:\.?\s+[A-Z][A-Z]*(?:\s+[A-Z][A-Z]*)*)?)\s*\/\s*(KNT\.\s*\d{1,6}|\d{3,6})\s*-/g,hits=[];let m,cols=0;
+  while((m=re.exec(body)))if(!m[1])hits.push({code:m[2].replace(/\s+/g,' ').trim(),mat:m[3].replace(/\s+/g,''),s:m.index,i:m.index+m[0].length});
   const rows=[];
   hits.forEach((h,k)=>{
     const seg=body.slice(h.i,k+1<hits.length?hits[k+1].s:body.length);
-    const q=seg.match(/(\d+)\s+([\d.,]+)\s+([\d.,]+)\s*(MTR|YARDS?|YDS?)\b/i);
-    if(q&&num(q[3])>0){rows.push({code:h.code,mat:h.mat,qty:num(q[3]),u:/^Y/i.test(q[4])?'Y':'M'});cols+=+q[1];}
+    const q=seg.match(/(\d+)\s+([\d.,]+)\s+([\d.,]+)\s*(MTR|YARDS?|YDS?|KGS?)\b/i);
+    if(q&&num(q[3])>0){rows.push({code:h.code,mat:h.mat,qty:num(q[3]),u:/^Y/i.test(q[4])?'Y':/^K/i.test(q[4])?'K':'M'});cols+=+q[1];}
   });
   meta.gab=[];const gt=t.slice(tm?tm.index:0),gr=/KIRIM\s+GABUNG|GABUNG\s+KIRIM/gi,ed=/\s+-\s|\s+SHIPPING\s+REMARK|\s+DIBUAT\s+OLEH|\s+NO\.\s*FORM/;let gm;
   while((gm=gr.exec(gt))){const a=gt.slice(0,gm.index),b=Math.max(a.lastIndexOf(' - ')+3,a.search(/REMARK\s*:\s*(?!.*REMARK\s*:)/)>=0?a.search(/REMARK\s*:\s*(?!.*REMARK\s*:)/):0),z=gt.slice(gm.index).search(ed);
@@ -255,7 +255,7 @@ function desKolom(it){
     const cC=c.x+c.w/2,cD=dz.x+dz.w/2,tot=it.find(i=>i.y<c.y&&i.x<cD&&/^T\s?O\s?T\s?A\s?L\b/.test(T(i.s))),yE=tot?tot.y:-1e9;
     const body=it.filter(i=>i.y<c.y-2&&i.y>yE&&T(i.s));
     /* awal tiap baris = baris teks yang memuat jumlah (MTR/YARD) atau kode berformat KODE / DESIGN */
-    const ys=body.filter(i=>/^[\d.,]+\s*(MTR|YARDS?|YDS?)\b/i.test(T(i.s))||(i.x<cC&&/^[A-Z][A-Z0-9.]*\d[A-Z0-9]*\s*\//.test(T(i.s)))).map(i=>i.y).sort((a,b)=>b-a),rw=[];
+    const ys=body.filter(i=>/^[\d.,]+\s*(MTR|YARDS?|YDS?|KGS?)\b/i.test(T(i.s))||(i.x<cC&&/^[A-Z][A-Z0-9.]*\d[A-Z0-9]*\s*\//.test(T(i.s)))).map(i=>i.y).sort((a,b)=>b-a),rw=[];
     ys.forEach(y=>{if(!rw.length||rw[rw.length-1]-y>3)rw.push(y);});
     const ds=body.filter(i=>i.x>cC&&i.x<=cD);
     rw.forEach((y,k)=>{
