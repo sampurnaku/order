@@ -216,7 +216,7 @@ function urai(txt){
   const meta={op:g(/O\.P\s*:\s*(\S+)/),buyer:g(/BUYER\s*:\s*(.+?)\s+CONTRACT NO/),contract:g(/CONTRACT NO\.?\s*:\s*(\S+)/),dest:g(/DESTINATION\s*:\s*(.+?)\s+INDENT NO/),shipment:g(/SHIPMENT\s*:\s*(\d{2}\/\d{2}\/\d{4})/),fu:g(/FOLLOW UP\s*:\s*(.+?)\s+SHIPMENT\s*:/),isNo:g(/DIBUAT OLEH\s+\S+\s+FOLLOW UP\s*:\s*\S+\s+(\d{4,8})/)};
   const tm=t.match(/T\s?O\s?T\s?A\s?L\s+(\d+)\s+([\d.,]+)/);
   const body=tm?t.slice(0,tm.index):t;
-  const re=/(KODE\s+|R\/O\s+)?\b((?:[A-Z]{2,}[A-Z0-9]*\d[A-Z0-9]*|LC[A-Z]{2,})(?:\.?\s+[A-Z][A-Z]*(?:\s+[A-Z][A-Z]*)*)?)\s*\/\s*(\d{4,6})\s*-/g,hits=[];let m,cols=0;
+  const re=/(KODE\s+|R\/O\s+)?\b((?:[A-Z]{2,}[A-Z0-9]*\d[A-Z0-9]*|LC[A-Z]{2,})(?:\.?\s+[A-Z][A-Z]*(?:\s+[A-Z][A-Z]*)*)?)\s*\/\s*(\d{3,6})\s*-/g,hits=[];let m,cols=0;
   while((m=re.exec(body)))if(!m[1])hits.push({code:m[2].replace(/\s+/g,' ').trim(),mat:m[3],s:m.index,i:m.index+m[0].length});
   const rows=[];
   hits.forEach((h,k)=>{
@@ -272,7 +272,7 @@ async function tambahPdf(f){
   const q=u.rows.reduce((a,r)=>a+r.qty,0);let w='';
   if(u.tot&&(u.tot.q!==q||u.tot.n!==u.cols))w=' Peringatan: total di PDF '+u.tot.n+' warna, '+fmt(u.tot.q)+', hasil baca '+u.cols+' warna, '+fmt(q)+'. Periksa tabelnya.';
   const gt=u.gab.length?' Ada kirim gabung.':'';
-  return {t:'Order '+id+(i>=0?' diperbarui di ':' ditambahkan ke ')+cur+': '+u.rows.length+' kode, '+fmt(q)+' m.'+gt+w,w:!!w};
+  return {t:'Order '+id+(i>=0?' diperbarui di ':' ditambahkan ke ')+cur+': '+u.rows.length+' kode, '+fmt(q)+' '+uS(u.rows[0].u)+'.'+gt+w,w:!!w};
 }
 const YD=0.9144,uL=u=>u==='Y'?'yard':u==='K'?'kg':'meter',uS=u=>u==='Y'?'yd':u==='K'?'kg':'m';
 const normU=v=>{const u=String(v==null?'':v).trim().toUpperCase();return /^(Y|YD|YDS|YARD|YARDS)$/.test(u)?'Y':/^(M|MTR|METER|METERS)$/.test(u)?'M':/^(KG|KGS|KILO|KILOGRAM)$/.test(u)?'K':'';};
