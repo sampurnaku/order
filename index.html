@@ -157,9 +157,10 @@ function setSh(){
   document.querySelectorAll('#list details.ord[open][data-oi]').forEach(d=>{const s=d.querySelector('summary');if(s)d.style.setProperty('--sh',s.offsetHeight+'px');});
 }
 document.addEventListener('toggle',setSh,true);window.addEventListener('resize',setSh);window.addEventListener('load',setSh);
-let curTab='up',gsel=null,gd=null,gA=[],GF={};
-function schVis(){$('#sch').hidden=curTab==='up'||(curTab==='grd'&&!D.grd.length);$('#hint').hidden=curTab!=='grd';$('#gflt').hidden=!(curTab==='grd'&&D.grd.length);}
+let curTab='up',gsel=null,gd=null,gA=[],GF={},ud=null;
+function schVis(){$('#sch').hidden=curTab==='up'||(curTab==='grd'&&!D.grd.length)||(curTab==='unk'&&!!ud);$('#hint').hidden=curTab!=='grd';$('#gflt').hidden=!(curTab==='grd'&&D.grd.length);}
 function setGh(){
+  const hu=document.querySelector('#unklist .gsh');if(hu){const eu=$('#unklist'),tu=eu.querySelector('.tx');if(tu){tu.classList.remove('ov');if(tu.scrollWidth>tu.clientWidth+1)tu.classList.add('ov');}eu.style.setProperty('--gh',hu.offsetHeight+'px');}
   const h=document.querySelector('#grdlist .gsh'),el=$('#grdlist');if(!h)return;
   const t=el.querySelector('.tx');if(t){t.classList.remove('ov');if(t.scrollWidth>t.clientWidth+1)t.classList.add('ov');}
   el.style.setProperty('--gh',h.offsetHeight+'px');
@@ -212,7 +213,7 @@ async function muatDb(){
 }
 function setPlant(p){
   if(!PD[p]||p===cur)return;
-  cur=p;D=PD[p];buyer=null;gsel=null;gd=null;GF={};
+  cur=p;D=PD[p];buyer=null;gsel=null;gd=null;ud=null;GF={};
   document.querySelectorAll('#gflt input,#gflt select').forEach(i=>{i.value='';});$('#cari').value='';
   render();setTab(curTab);save();msg('Plant '+p+' dibuka.');
 }
@@ -355,7 +356,7 @@ async function stockUpload(fs){
     msg('Membaca '+f.name+' untuk plant '+p+', mohon tunggu...');await new Promise(r=>setTimeout(r,30));
     const nw=await bacaStock(f),old=PD[p].info;
     if(old&&tglKey(nw.info.tgl)&&tglKey(nw.info.tgl)<tglKey(old.tgl)&&!confirm(f.name+' bertanggal '+nw.info.tgl+', lebih lama dari data '+p+' yang ada ('+old.tgl+'). Tetap dipakai?')){out.push(f.name+' dilewati.');continue;}
-    PD[p].src=nw.src;PD[p].grd=nw.grd;PD[p].info=nw.info;dirtyS[p]=1;if(p===cur){gsel=null;gd=null;}
+    PD[p].src=nw.src;PD[p].grd=nw.grd;PD[p].info=nw.info;dirtyS[p]=1;if(p===cur){gsel=null;gd=null;ud=null;}
     const i=nw.info;let t=p+': '+fmt(i.rows)+' baris dibaca. Stock fresh '+fmt(i.nf)+' baris ('+i.jf+' jenis proses), stock grade '+fmt(i.ng)+' baris ('+i.jg+' jenis proses).';
     if(p===cur){const all=[].concat.apply([],D.orders.map(o=>o.rows.filter(r=>!r.closed).map(r=>r.code))),hit=all.filter(c=>D.src.some(s=>s.recv[c])).length;t+=' '+hit+' dari '+all.length+' kode order yang masih berjalan ada di stock fresh. '+unk('').length+' kode di stock fresh belum punya Instruction Sheet.';}
     out.push(t);
@@ -375,14 +376,26 @@ function unk(q){
   }));
   return Object.keys(a).map(k=>a[k]).filter(x=>!q||x.c.indexOf(q)>=0).sort((p,r)=>(r.M+r.Y*YD+r.K)-(p.M+p.Y*YD+p.K)||(p.c<r.c?-1:1));
 }
+function unkDetail(code){
+  const rows=[],tot={},gr={};let pc=0,ada=false;
+  D.src.forEach(s=>{const v=s.recv[code];if(!v)return;ada=true;(v.r||[]).forEach(a=>{rows.push({p:a[0],q:a[1],m:a[2],lb:a[3],cl:a[4],dg:a[5],dr:a[6],g:a[7],d:a[8]||'',u:s.unit,j:s.file});pc+=a[0]||0;tot[s.unit]=(tot[s.unit]||0)+a[1];const k=a[7]+'\u0001'+s.unit;gr[k]=(gr[k]||0)+a[1];});});
+  rows.sort((a,b)=>nCmp(a.dr,b.dr)||tglKey(a.d)-tglKey(b.d));
+  const us=['M','Y','K'].filter(u=>tot[u]>0),ts=us.map(u=>fmt(tot[u])+' '+uS(u)).join(' + '),ms=[...new Set(rows.map(r=>r.m).filter(Boolean))].join(', ');
+  const mix=us.length>1;
+  const body=rows.map(o=>'<tr><td>'+esc(o.dr||'-')+'<small>Grade '+esc(o.g)+(o.d?' · '+esc(o.d):'')+' · '+esc(o.j)+'</small>'+(o.dg?'<small>'+esc(o.dg)+'</small>':'')+'</td><td>'+esc(o.m)+'</td><td>'+esc(o.cl)+'</td><td>'+esc(o.lb)+'</td><td>'+fmt(o.p)+'</td><td>'+fmt(o.q)+(mix?' '+uS(o.u):'')+'</td></tr>').join('');
+  const gt=Object.keys(gr).sort().map(k=>{const a=k.split('\u0001');return '<span class="tg s0">Grade '+esc(a[0])+' '+fmt(gr[k])+' '+uS(a[1])+'</span>';}).join('');
+  return '<div class="gsh"><div class="dh"><button class="btn" data-udback="1" aria-label="Kembali ke daftar kode">Kembali</button><h2 class="bn">'+esc(code)+'</h2></div><div class="gtags"><span class="tg s0">Plant '+cur+', stock fresh, belum ada IS</span>'+(ms?'<span class="tg s0">Material '+esc(ms)+'</span>':'')+'<span class="tg s0">'+fmt(rows.length)+' baris: '+fmt(pc)+' pcs, '+ts+'</span>'+gt+'</div></div>'+
+   '<div class="gcard d"><div class="tx"><table><thead><tr><th>Doc Reff</th><th>Material</th><th>Color</th><th>Lebar</th><th>Pcs</th><th>Qty'+(mix?'':' ('+(us[0]?uS(us[0]):'')+')')+'</th></tr></thead><tbody>'+(body||'<tr><td colspan="6">'+(ada?'Rincian baris belum tersimpan, unggah ulang Excel stock plant ini.':'Kode ini sudah tidak ada di stock fresh.')+'</td></tr>')+'</tbody></table></div></div>';
+}
 function unkHtml(q){
   if(!D.src.length)return '';
+  if(ud)return unkDetail(ud);
   const l=unk(q);
   if(!l.length)return '<p class="note">'+(q?'Tidak ada kode yang cocok.':'Semua kode di stock fresh plant ini sudah punya Instruction Sheet.')+'</p>';
   const rows=l.slice(0,lim).map(x=>{
     const us=['M','Y','K'].filter(u=>x[u]>0),tot=us.map(u=>fmt(x[u])+' '+uS(u)).join(' + ');
     const gr=us.map(u=>Object.keys(x.g[u]).sort().map(k=>'Grade '+k+' '+fmt(x.g[u][k])+' '+uS(u)).join(', ')).join(', ');
-    return '<tr><td>'+esc(x.c)+(x.m?'<small>Material '+esc(x.m)+'</small>':'')+'<small>'+esc(gr)+'</small></td><td>'+tot+'</td></tr>';
+    return '<tr><td><div class="mr"><span>'+esc(x.c)+'</span><button class="dbtn" data-ud="'+esc(x.c)+'" aria-label="Detail kode '+esc(x.c)+'">Detail ›</button></div>'+(x.m?'<small>Material '+esc(x.m)+'</small>':'')+'<small>'+esc(gr)+'</small></td><td>'+tot+'</td></tr>';
   }).join('');
   return '<details class="ord" id="unk" open><summary><div class="oh"><b>Belum ada Instruction Sheet</b><span>'+l.length+' kode</span></div><div class="meta"><span>Kode ini ada di stock fresh plant '+cur+' tapi belum ada di order plant ini. Unggah PDF-nya lewat Tambah order (PDF).</span></div></summary><div class="tx"><table><thead><tr><th>Kode</th><th>Hasil</th></tr></thead><tbody>'+rows+'</tbody></table></div>'+'<div class="ft"><span class="note">Daftar mengikuti kolom cari</span><button class="btn" data-copyunk="1">Salin daftar kode</button></div>'+'</details>';
 }
@@ -797,6 +810,8 @@ $('#grdlist').addEventListener('click',e=>{const a=e.target.closest('[data-gsel]
   if(e.target.closest('[data-gdback]')){gd=null;render();window.scrollTo(0,0);return;}
   if(e.target.closest('[data-gback]')){gsel=null;gd=null;render();window.scrollTo(0,0);}});
 document.querySelector('.wrap').addEventListener('click',e=>{
+  const ub=e.target.closest('[data-ud]');if(ub){ud=ub.dataset.ud;render();schVis();window.scrollTo(0,0);setGh();return;}
+  if(e.target.closest('[data-udback]')){ud=null;render();schVis();window.scrollTo(0,0);setGh();return;}
   if(e.target.closest('[data-copyunk]')){
     const t=unk($('#cari').value.trim().toUpperCase()).map(x=>x.c+'\t'+['M','Y','K'].filter(u=>x[u]>0).map(u=>fmt(x[u])+' '+uS(u)).join(' + ')).join('\n');
     const ok=()=>msg('Daftar kode disalin.'),alt=()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();let z=false;try{z=document.execCommand('copy');}catch(x){}a.remove();msg(z?'Daftar kode disalin.':'Gagal menyalin daftar kode.',!z);};
@@ -814,7 +829,7 @@ document.querySelector('.wrap').addEventListener('click',e=>{
       msg('Warna '+r.code+(rc?' ditandai close.':' dibuka kembali.'));}}
 });
 $('#src').addEventListener('click',e=>{const b=e.target.closest('[data-dplant]');if(!b)return;const p=b.dataset.dplant,x=PD[p];
-  if(x&&confirm('Hapus semua data stock plant '+p+' (stock fresh dan stock grade)? Order plant '+p+' tidak ikut terhapus.')){x.src=[];x.grd=[];x.info=null;dirtyS[p]=1;if(p===cur){gsel=null;gd=null;}save();render();msg('Data stock '+p+' dihapus.');}});
+  if(x&&confirm('Hapus semua data stock plant '+p+' (stock fresh dan stock grade)? Order plant '+p+' tidak ikut terhapus.')){x.src=[];x.grd=[];x.info=null;dirtyS[p]=1;if(p===cur){gsel=null;gd=null;ud=null;}save();render();msg('Data stock '+p+' dihapus.');}});
 document.querySelector('.wrap').addEventListener('click',async e=>{
   const b=e.target.closest('[data-xp]');if(!b)return;
   const pdfw=b.dataset.xp==='pdfw',pdf=b.dataset.xp==='pdf'||pdfw;
@@ -845,7 +860,7 @@ async function impor(txt){
   if(PLS.some(p=>po[p]&&PD[p].orders.length)&&!confirm((lama?'Cadangan versi lama, belum ada pemisahan plant. Semua order dimasukkan ke LJB, data stock di cadangan tidak dipakai (unggah ulang Excel stock). ':'')+'Ganti order di aplikasi ini dengan isi cadangan ('+nb+')?')){msg('Dibatalkan. Data tidak berubah.');return;}
   let np=0,ns=0;
   for(const p of PLS){if(!po[p])continue;const old=PD[p].orders;PD[p].orders=po[p];mig(PD[p]);
-    const st=o.plants&&o.plants[p]&&o.plants[p].stock;if(st&&Array.isArray(st.src)&&Array.isArray(st.grd)){PD[p].src=st.src;PD[p].grd=st.grd;PD[p].info=st.info||null;dirtyS[p]=1;ns++;if(p===cur){gsel=null;gd=null;}}
+    const st=o.plants&&o.plants[p]&&o.plants[p].stock;if(st&&Array.isArray(st.src)&&Array.isArray(st.grd)){PD[p].src=st.src;PD[p].grd=st.grd;PD[p].info=st.info||null;dirtyS[p]=1;ns++;if(p===cur){gsel=null;gd=null;ud=null;}}
     try{for(const x of old)await kvDel('pdf:'+p+':'+x.id);const pf=(o.plants&&o.plants[p]&&o.plants[p].pdfs)||{};for(const id in pf){await kvPut('pdf:'+p+':'+id,{name:pf[id].name,buf:unb64(pf[id].b64)});np++;}}catch(e){}}
   buyer=null;save();render();
   msg('Cadangan diimpor: '+nb+(np?', '+np+' file IS':'')+(ns?', data stock '+ns+' plant':'')+'.'+(lama?' Cadangan versi lama, semua order dimasukkan ke LJB. Unggah Excel stock LJB dan LJK untuk mengisi stock.':''));
@@ -861,7 +876,7 @@ $('#fbk').addEventListener('change',e=>{const f=e.target.files[0];e.target.value
 if(navigator.storage&&navigator.storage.persist)navigator.storage.persist().catch(()=>{});
 setSub('pdf');
 document.querySelector('#p-up .seg').addEventListener('click',e=>{const b=e.target.closest('[data-sub]');if(b)setSub(b.dataset.sub);});
-document.querySelector('.nav').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){if(b.dataset.tab==='grd'&&b.getAttribute('aria-current')==='true'&&gsel){if(gd)gd=null;else gsel=null;render();}if(b.dataset.tab==='stk'&&b.getAttribute('aria-current')==='true'&&buyer){buyer=null;render();}setTab(b.dataset.tab);}});
+document.querySelector('.nav').addEventListener('click',e=>{const b=e.target.closest('[data-tab]');if(b){if(b.dataset.tab==='grd'&&b.getAttribute('aria-current')==='true'&&gsel){if(gd)gd=null;else gsel=null;render();}if(b.dataset.tab==='unk'&&b.getAttribute('aria-current')==='true'&&ud){ud=null;render();}if(b.dataset.tab==='stk'&&b.getAttribute('aria-current')==='true'&&buyer){buyer=null;render();}setTab(b.dataset.tab);}});
 (async()=>{msg('Memuat data...');const lg=await muatDb();render();setTab(PLS.some(p=>PD[p].orders.length||PD[p].src.length)?'stk':'up');msg(lg,/tidak bisa/.test(lg));})();
 if('serviceWorker' in navigator&&/^https?:$/.test(location.protocol)){window.addEventListener('load',()=>navigator.serviceWorker.register('sw.js').catch(()=>{}));}
 </script></body></html>
