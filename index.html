@@ -125,7 +125,7 @@ tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-to
 <div id="src"></div>
 
 <details class="bk"><summary>Cadangan data</summary>
-<p class="note">Simpan semua order dari plant LJB dan LJK (termasuk tanda close) ke satu file untuk pindah HP atau sebagai pengaman. Data stock tidak ikut disimpan, karena bisa diunggah ulang dari Excel. Saat impor, semua order di aplikasi ini diganti dengan isi cadangan, tidak ditambahkan.</p>
+<p class="note">Simpan semua order dari plant LJB dan LJK (termasuk tanda close, file PDF IS, dan data stock hasil unggah Excel) ke satu file untuk pindah HP atau sebagai pengaman. Karena memuat data stock, file cadangan bisa berukuran puluhan MB, jadi pakai Unduh cadangan, bukan Salin sebagai teks. Saat impor, semua order di aplikasi ini diganti dengan isi cadangan, tidak ditambahkan.</p>
 <div class="bar"><button class="btn" data-bk="unduh">Unduh cadangan</button><button class="btn" data-bk="salin">Salin sebagai teks</button>
 <label class="btn">Pilih file cadangan<input type="file" id="fbk" accept=".json,application/json" hidden></label><button class="btn" data-bk="teks">Impor dari teks</button></div>
 <textarea id="tbk" spellcheck="false" placeholder="Teks cadangan muncul di sini. Untuk impor dari teks, tempel isi cadangan lalu tekan Impor dari teks."></textarea></details>
@@ -172,7 +172,9 @@ function setSub(k){$('#u-pdf').hidden=k!=='pdf';$('#u-xls').hidden=k!=='xls';doc
 /* data dipisah per plant: D selalu menunjuk ke data plant yang sedang dibuka */
 const PLS=['LJB','LJK'],mkP=()=>({orders:[],src:[],grd:[],info:null}),PD={LJB:mkP(),LJK:mkP()};
 let cur='LJB',D=PD.LJB;
-const mig=d=>d.orders.forEach(o=>{if(o.closed){o.rows.forEach(r=>{if(!r.closed)r.closed=o.closed;});delete o.closed;}if(o.gab){const a=[];o.gab.forEach(g=>{if(g.s){a.push(g);return;}let l=gabCodes(g.ket||'');if(!l.length&&/^LC[A-Z0-9]{2,}$/.test(g.kode||''))l=[g];l.forEach(x=>{if(!a.some(y=>y.ket===x.ket))a.push(x);});});o.gab=a;}});
+/* baris dengan kode sama dalam satu order digabung, kalau tidak stock yang sama terhitung dua kali */
+const mergeDup=rs=>{const a=[];rs.forEach(r=>{const x=a.find(y=>y.code===r.code&&(y.u||'M')===(r.u||'M'));if(x){x.qty+=r.qty;if(!x.dg&&r.dg)x.dg=r.dg;}else a.push(r);});return a;};
+const mig=d=>d.orders.forEach(o=>{o.rows=mergeDup(o.rows);})||d.orders.forEach(o=>{if(o.closed){o.rows.forEach(r=>{if(!r.closed)r.closed=o.closed;});delete o.closed;}if(o.gab){const a=[];o.gab.forEach(g=>{if(g.s){a.push(g);return;}let l=gabCodes(g.ket||'');if(!l.length&&/^LC[A-Z0-9]{2,}$/.test(g.kode||''))l=[g];l.forEach(x=>{if(!a.some(y=>y.ket===x.ket))a.push(x);});});o.gab=a;}});
 const oDone=o=>o.rows.length>0&&o.rows.every(r=>r.closed);
 const fmt=n=>Number(n).toLocaleString('id-ID',{maximumFractionDigits:1});
 const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -181,6 +183,17 @@ function msg(t,e){const m=$('#msg');m.textContent=t;m.className=e?'err':'';}
 const dirtyO={},dirtyS={};let tmr=0,fl=Promise.resolve(),dbp=null;
 const DB=()=>dbp||(dbp=new Promise((res,rej)=>{if(!window.indexedDB)return rej(new Error('IndexedDB tidak tersedia'));const r=indexedDB.open('pelacak-order-db',1);r.onupgradeneeded=()=>r.result.createObjectStore('kv');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);}));
 const kvGet=k=>DB().then(db=>new Promise((res,rej)=>{const q=db.transaction('kv').objectStore('kv').get(k);q.onsuccess=()=>res(q.result);q.onerror=()=>rej(q.error);}));
+const kvDel=k=>DB().then(db=>new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').delete(k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);}));
+const pdfKey=o=>'pdf:'+cur+':'+o.id;
+async function lihatIs(o){
+  if(!o)return;const w=window.open('','_blank');
+  try{const r=await kvGet(pdfKey(o));
+    if(!r||!r.buf){if(w)w.close();msg('File IS order O.P '+(o.op||o.id)+' belum tersimpan di perangkat ini. Unggah ulang PDF-nya lewat Tambah order (PDF), tanda close tidak hilang.',1);return;}
+    const blob=new Blob([r.buf],{type:'application/pdf'}),url=URL.createObjectURL(blob);
+    if(w)w.location.href=url;else unduhBlob(blob,r.name||'instruction-sheet.pdf');
+    setTimeout(()=>URL.revokeObjectURL(url),600000);
+  }catch(e){if(w)w.close();msg('Gagal membuka file IS.',1);}
+}
 const kvPut=(k,v)=>DB().then(db=>new Promise((res,rej)=>{const t=db.transaction('kv','readwrite');t.objectStore('kv').put(v,k);t.oncomplete=()=>res();t.onerror=()=>rej(t.error);t.onabort=()=>rej(t.error);}));
 function save(){PLS.forEach(p=>dirtyO[p]=1);clearTimeout(tmr);tmr=setTimeout(flush,30);}
 function flush(){fl=fl.then(async()=>{try{await kvPut('cur',cur);for(const p of PLS){if(dirtyO[p]){dirtyO[p]=0;await kvPut(p+':o',PD[p].orders);}if(dirtyS[p]){dirtyS[p]=0;await kvPut(p+':s',{src:PD[p].src,grd:PD[p].grd,info:PD[p].info});}}}catch(e){msg('Gagal menyimpan: penyimpanan browser penuh atau diblokir. Unduh cadangan order dulu.',1);}});return fl;}
@@ -265,10 +278,12 @@ async function tambahPdf(f){
   const pr=await teksPdf(f),u=urai(pr.t),dus={};
   const nk=s=>String(s).replace(/[\s.]/g,'').toUpperCase();
   u.rows.forEach(r=>{const k=pr.des.findIndex((d,j)=>!dus[j]&&nk(d.code)===nk(r.code));if(k>=0){dus[k]=1;if(pr.des[k].dg)r.dg=pr.des[k].dg;}});
+  u.rows=mergeDup(u.rows);
   if(!u.rows.length)throw new Error(f.name+': tidak ada kode order yang terbaca. Pastikan ini PDF Instruction Sheet.');
   const id=u.op||f.name,i=D.orders.findIndex(o=>o.id===id||(u.isNo&&o.isNo===u.isNo));
   const o={id:id,op:u.op,buyer:u.buyer,contract:u.contract,dest:u.dest,shipment:u.shipment,fu:u.fu,isNo:u.isNo,gab:u.gab,file:f.name,rows:u.rows};
   if(i>=0){const used={};o.rows.forEach(r=>{const k=D.orders[i].rows.findIndex((x,j)=>x.code===r.code&&x.closed&&!used[j]);if(k>=0){used[k]=1;r.closed=D.orders[i].rows[k].closed;}});D.orders[i]=o;}else D.orders.push(o);
+  try{await kvPut('pdf:'+cur+':'+o.id,{name:f.name,buf:await f.arrayBuffer()});}catch(e){}
   const q=u.rows.reduce((a,r)=>a+r.qty,0);let w='';
   if(u.tot&&(u.tot.q!==q||u.tot.n!==u.cols))w=' Peringatan: total di PDF '+u.tot.n+' warna, '+fmt(u.tot.q)+', hasil baca '+u.cols+' warna, '+fmt(q)+'. Periksa tabelnya.';
   const gt=u.gab.length?' Ada kirim gabung.':'';
@@ -407,7 +422,7 @@ function card(o,oi,cnt,q,open){
   const u=uS(P.u0),nc=o.rows.filter(r=>r.closed).length,kR=P.rs.reduce((a,r)=>a+(r.k?conv(r.k.R,r.u,P.u0):0),0);
   const gb=(o.gab||[]).map(g=>'<div class="gb"><span class="tg s1">Kirim gabung</span> '+esc(g.ket)+'</div>').join('');
   const MT='<div class="meta"><span>'+fmt(P.tg)+' dari '+fmt(P.tq)+' '+u+'</span><span>'+fmt(P.tp)+' pcs</span>'+(nc?'<span>'+nc+' dari '+o.rows.length+' warna close</span>':'')+(kR>0?'<span class="cr">Belum cek (R) '+fmt(kR)+' '+u+'</span>':'')+meta+'</div>'+gb+'';
-  return '<details class="ord" data-oi="'+oi+'"'+(open||q?' open':'')+'><summary><div class="oh"><b>'+esc(bNama(o))+kdTxt([o],3)+(oDone(o)?' <span class="tg s2">Semua warna close</span>':'')+'</b><span>'+fmt(P.p)+'%</span></div><div class="sm">'+MT+'</div><div class="pg"><i style="width:'+Math.min(100,P.p)+'%"></i></div></summary>'+(gb?'<div class="bm">'+gb+'</div>':'')+'<div class="tx"><table><thead><tr><th>Kode</th><th>Order ('+u+')</th><th>CLR</th><th>Sudah ada ('+u+')</th><th>Pcs</th><th>Sisa ('+u+')</th><th>Capaian</th></tr></thead><tbody>'+body+'</tbody>'+tfoot+'</table></div><div class="ft"><span class="note">File '+esc(o.file||'')+'</span><span><button class="btn" data-del="'+oi+'">Hapus</button></span></div></details>';
+  return '<details class="ord" data-oi="'+oi+'"'+(open||q?' open':'')+'><summary><div class="oh"><b>'+esc(bNama(o))+kdTxt([o],3)+(oDone(o)?' <span class="tg s2">Semua warna close</span>':'')+'</b><span>'+fmt(P.p)+'%</span></div><div class="sm">'+MT+'</div><div class="pg"><i style="width:'+Math.min(100,P.p)+'%"></i></div></summary>'+(gb?'<div class="bm">'+gb+'</div>':'')+'<div class="tx"><table><thead><tr><th>Kode</th><th>Order ('+u+')</th><th>CLR</th><th>Sudah ada ('+u+')</th><th>Pcs</th><th>Sisa ('+u+')</th><th>Capaian</th></tr></thead><tbody>'+body+'</tbody>'+tfoot+'</table></div><div class="ft"><span class="note">File '+esc(o.file||'')+'</span><span><button class="btn" data-is="'+oi+'">Lihat IS</button> <button class="btn" data-del="'+oi+'">Hapus</button></span></div></details>';
 }
 function render(){
   renderG();
@@ -781,11 +796,12 @@ document.querySelector('.wrap').addEventListener('click',e=>{
     const t=unk($('#cari').value.trim().toUpperCase()).map(x=>x.c+'\t'+['M','Y','K'].filter(u=>x[u]>0).map(u=>fmt(x[u])+' '+uS(u)).join(' + ')).join('\n');
     const ok=()=>msg('Daftar kode disalin.'),alt=()=>{const a=document.createElement('textarea');a.value=t;document.body.appendChild(a);a.select();let z=false;try{z=document.execCommand('copy');}catch(x){}a.remove();msg(z?'Daftar kode disalin.':'Gagal menyalin daftar kode.',!z);};
     if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t).then(ok,alt);else alt();return;}
+  const bis=e.target.closest('[data-is]');if(bis){lihatIs(D.orders[+bis.dataset.is]);return;}
   const by=e.target.closest('[data-buyer]');if(by){buyer=by.dataset.buyer;render();window.scrollTo(0,0);return;}
   if(e.target.closest('[data-back]')){buyer=null;render();window.scrollTo(0,0);return;}
   const g=a=>{const b=e.target.closest('['+a+']');return b?D.orders[+b.getAttribute(a)]:null;};
   const d=g('data-del'),rc=e.target.closest('[data-rc]'),ro=e.target.closest('[data-ro]');
-  if(d){if(confirm('Hapus order O.P '+(d.op||d.id)+'? File hasil tidak ikut terhapus.')){D.orders.splice(D.orders.indexOf(d),1);save();render();msg('Order dihapus.');}}
+  if(d){if(confirm('Hapus order O.P '+(d.op||d.id)+'? File hasil tidak ikut terhapus.')){kvDel(pdfKey(d)).catch(()=>{});D.orders.splice(D.orders.indexOf(d),1);save();render();msg('Order dihapus.');}}
   else if(rc||ro){const v=(rc||ro).dataset[rc?'rc':'ro'].split(':'),o=D.orders[+v[0]],r=o&&o.rows[+v[1]];
     if(r){if(rc)r.closed=new Date().toISOString().slice(0,10);else delete r.closed;
       const op=[].map.call(document.querySelectorAll('#list details.ord[open][data-oi]'),x=>x.dataset.oi);
@@ -806,8 +822,14 @@ document.querySelector('.wrap').addEventListener('click',async e=>{
     msg((pdf?'PDF':'Excel')+' diunduh: '+x.n+' baris. Nama file '+x.nama+(pdf?'.pdf':'.xlsx')+'.');
   }catch(err){msg(err.message||'Gagal membuat file.',1);}
 });
-const snap=()=>JSON.stringify({app:'pelacak-order',versi:2,dibuat:new Date().toISOString(),plants:{LJB:{orders:PD.LJB.orders},LJK:{orders:PD.LJK.orders}}},null,1);
-function impor(txt){
+const b64=buf=>{const u=new Uint8Array(buf);let t='';for(let i=0;i<u.length;i+=0x8000)t+=String.fromCharCode.apply(null,u.subarray(i,i+0x8000));return btoa(t);};
+const unb64=t=>{const a=atob(t),u=new Uint8Array(a.length);for(let i=0;i<a.length;i++)u[i]=a.charCodeAt(i);return u.buffer;};
+async function snap(){
+  const pl={};
+  for(const p of PLS){const pdfs={};for(const o of PD[p].orders){try{const r=await kvGet('pdf:'+p+':'+o.id);if(r&&r.buf)pdfs[o.id]={name:r.name,b64:b64(r.buf)};}catch(e){}}pl[p]={orders:PD[p].orders,pdfs:pdfs,stock:PD[p].info?{src:PD[p].src,grd:PD[p].grd,info:PD[p].info}:null};}
+  return JSON.stringify({app:'pelacak-order',versi:2,dibuat:new Date().toISOString(),plants:pl});
+}
+async function impor(txt){
   let o;try{o=JSON.parse(txt);}catch(e){msg('Isi tidak valid. Pastikan seluruh teks cadangan tertempel.',1);return;}
   let po,lama=false;
   if(o&&o.plants&&typeof o.plants==='object'){po={};PLS.forEach(p=>{po[p]=o.plants[p]&&Array.isArray(o.plants[p].orders)?o.plants[p].orders:null;});}
@@ -816,13 +838,17 @@ function impor(txt){
   const nb=PLS.filter(p=>po[p]).map(p=>p+' '+po[p].length+' order').join(', ');
   if(!nb){msg('Cadangan ini tidak berisi order.',1);return;}
   if(PLS.some(p=>po[p]&&PD[p].orders.length)&&!confirm((lama?'Cadangan versi lama, belum ada pemisahan plant. Semua order dimasukkan ke LJB, data stock di cadangan tidak dipakai (unggah ulang Excel stock). ':'')+'Ganti order di aplikasi ini dengan isi cadangan ('+nb+')?')){msg('Dibatalkan. Data tidak berubah.');return;}
-  PLS.forEach(p=>{if(po[p]){PD[p].orders=po[p];mig(PD[p]);}});buyer=null;save();render();
-  msg('Cadangan diimpor: '+nb+'.'+(lama?' Cadangan versi lama, semua order dimasukkan ke LJB. Unggah Excel stock LJB dan LJK untuk mengisi stock.':''));
+  let np=0,ns=0;
+  for(const p of PLS){if(!po[p])continue;const old=PD[p].orders;PD[p].orders=po[p];mig(PD[p]);
+    const st=o.plants&&o.plants[p]&&o.plants[p].stock;if(st&&Array.isArray(st.src)&&Array.isArray(st.grd)){PD[p].src=st.src;PD[p].grd=st.grd;PD[p].info=st.info||null;dirtyS[p]=1;ns++;if(p===cur){gsel=null;gd=null;}}
+    try{for(const x of old)await kvDel('pdf:'+p+':'+x.id);const pf=(o.plants&&o.plants[p]&&o.plants[p].pdfs)||{};for(const id in pf){await kvPut('pdf:'+p+':'+id,{name:pf[id].name,buf:unb64(pf[id].b64)});np++;}}catch(e){}}
+  buyer=null;save();render();
+  msg('Cadangan diimpor: '+nb+(np?', '+np+' file IS':'')+(ns?', data stock '+ns+' plant':'')+'.'+(lama?' Cadangan versi lama, semua order dimasukkan ke LJB. Unggah Excel stock LJB dan LJK untuk mengisi stock.':''));
 }
-document.querySelector('details.bk').addEventListener('click',e=>{
+document.querySelector('details.bk').addEventListener('click',async e=>{
   const b=e.target.closest('[data-bk]');if(!b)return;const a=b.dataset.bk,t=$('#tbk');
-  if(a==='unduh'){try{const l=document.createElement('a');l.href=URL.createObjectURL(new Blob([snap()],{type:'application/json'}));l.download='cadangan-cek-order-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(l);l.click();l.remove();msg('Cadangan diunduh. Kalau tidak ada file yang muncul, pakai Salin sebagai teks.');}catch(x){msg('Unduh gagal. Pakai Salin sebagai teks.',1);}}
-  else if(a==='salin'){t.value=snap();t.focus();t.select();const ok=()=>msg('Teks cadangan disalin. Tempel ke catatan atau WhatsApp.');
+  if(a==='unduh'){try{const l=document.createElement('a');l.href=URL.createObjectURL(new Blob([await snap()],{type:'application/json'}));l.download='cadangan-cek-order-'+new Date().toISOString().slice(0,10)+'.json';document.body.appendChild(l);l.click();l.remove();msg('Cadangan diunduh. Kalau tidak ada file yang muncul, pakai Salin sebagai teks.');}catch(x){msg('Unduh gagal. Pakai Salin sebagai teks.',1);}}
+  else if(a==='salin'){t.value=await snap();t.focus();t.select();const ok=()=>msg('Teks cadangan disalin. Tempel ke catatan atau WhatsApp.');
     if(navigator.clipboard&&navigator.clipboard.writeText)navigator.clipboard.writeText(t.value).then(ok,()=>msg('Tekan lama pada kotak teks, lalu pilih Salin.'));else msg('Tekan lama pada kotak teks, lalu pilih Salin.');}
   else if(a==='teks')impor(t.value);
 });
