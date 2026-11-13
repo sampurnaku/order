@@ -99,6 +99,7 @@ details.done{margin-top:18px}details.done>summary{cursor:pointer;font-weight:600
 .ord[data-oi] tfoot td{font-weight:600;border-top:1px solid var(--line);background:var(--bg);font-size:12px}
 .ord[data-oi] tfoot tr.tt td{border-top:2px solid var(--sil);font-size:13px}.ord[data-oi] tfoot tr.st td{font-weight:500;color:var(--mut)}
 .ord[data-oi] tfoot td:first-child{padding-left:10px}
+.lap h2{font-size:16px;margin:20px 0 4px}.lap table{width:100%;border-collapse:collapse;font-size:14px;margin:6px 0 4px}.lap th,.lap td{padding:8px 6px;border-bottom:1px solid var(--line);text-align:left;vertical-align:top}.lap th{font-size:13px;color:var(--mut);font-weight:600}.lap .n{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap}.lap tr.lg td{font-weight:600;background:var(--card)}.lap tr.tt td{font-weight:600;border-top:2px solid var(--sil)}
 details.bk{margin-top:28px}details.bk summary{cursor:pointer;font-weight:600;min-height:32px}
 tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-top:6px}
 .seg{display:flex;margin:14px 0 0;border:1px solid var(--line);border-radius:8px;overflow:hidden;background:var(--card)}.seg button{flex:1;min-height:44px;border:0;background:none;color:var(--mut);font:inherit;cursor:pointer;padding:0 8px}.seg button+button{border-left:1px solid var(--line)}.seg button[aria-current=true]{background:var(--acc);color:var(--on);font-weight:600}.seg button:focus-visible{outline:2px solid var(--acc);outline-offset:-4px}
@@ -110,7 +111,7 @@ tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-to
 </style></head><body><div class="wrap">
 <h1>Cek Order</h1>
 <p class="sub">PDF Instruction Sheet (IS) jadi order, satu file Excel per plant jadi jumlah stock fresh dan stock grade yang sudah didapat.</p>
-<p class="note" id="ver">Versi 10-11-2026, data dipisah per plant LJB dan LJK, satu file Excel stock per plant</p>
+<p class="note" id="ver">Versi 13-11-2026, data dipisah per plant LJB dan LJK, ada menu Laporan stock</p>
 <div class="seg" id="pl" role="group" aria-label="Plant"><button data-pl="LJB">LJB</button><button data-pl="LJK">LJK</button></div>
 <div id="msg" role="status"></div>
 <section id="p-up">
@@ -146,9 +147,10 @@ tr.cl td:not(:last-child){opacity:.6}.rb{font-size:13px;padding:0 10px;margin-to
 <section id="p-unk" hidden><div id="unklist"></div></section>
 <section id="p-stk" hidden><div id="list"></div></section>
 <section id="p-grd" hidden><div id="grdlist"></div></section>
+<section id="p-lap" hidden><div id="laplist" class="lap"></div></section>
 <dialog id="dlg"></dialog>
 </div>
-<nav class="nav" aria-label="Menu"><button data-tab="up">Upload</button><button data-tab="unk">Belum ada IS<span id="nbadge"></span></button><button data-tab="stk">Data stock fresh</button><button data-tab="grd">Data stock grade</button></nav>
+<nav class="nav" aria-label="Menu"><button data-tab="up">Upload</button><button data-tab="unk">Belum ada IS<span id="nbadge"></span></button><button data-tab="stk">Data stock fresh</button><button data-tab="grd">Data stock grade</button><button data-tab="lap">Laporan stock</button></nav>
 <script>
 const KEY='pelacak-order-v1',PDFJS='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js',PDFW='https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js',XLS='https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js';
 const $=s=>document.querySelector(s);
@@ -158,7 +160,7 @@ function setSh(){
 }
 document.addEventListener('toggle',setSh,true);window.addEventListener('resize',setSh);window.addEventListener('load',setSh);
 let curTab='up',gsel=null,gd=null,gA=[],GF={},ud=null;
-function schVis(){$('#sch').hidden=curTab==='up'||(curTab==='grd'&&!D.grd.length)||(curTab==='unk'&&!!ud);$('#hint').hidden=curTab!=='grd';$('#gflt').hidden=!(curTab==='grd'&&D.grd.length);}
+function schVis(){$('#sch').hidden=curTab==='up'||curTab==='lap'||(curTab==='grd'&&!D.grd.length)||(curTab==='unk'&&!!ud);$('#hint').hidden=curTab!=='grd';$('#gflt').hidden=!(curTab==='grd'&&D.grd.length);}
 function setGh(){
   const hu=document.querySelector('#unklist .gsh');if(hu){const eu=$('#unklist'),tu=eu.querySelector('.tx');if(tu){tu.classList.remove('ov');if(tu.scrollWidth>tu.clientWidth+1)tu.classList.add('ov');}eu.style.setProperty('--gh',hu.offsetHeight+'px');}
   const h=document.querySelector('#grdlist .gsh'),el=$('#grdlist');if(!h)return;
@@ -166,12 +168,15 @@ function setGh(){
   el.style.setProperty('--gh',h.offsetHeight+'px');
 }
 window.addEventListener('resize',setGh);window.addEventListener('load',setGh);
-function setTab(t){curTab=t;['up','unk','stk','grd'].forEach(k=>{$('#p-'+k).hidden=k!==t;});schVis();
+function setTab(t){curTab=t;['up','unk','stk','grd','lap'].forEach(k=>{$('#p-'+k).hidden=k!==t;});schVis();if(t==='lap')renderLap();
   $('#cari').placeholder=t==='stk'?'Cari buyer atau kode':t==='grd'?'Cari doc reff, grade, kd. order, material, color':'Cari kode, misalnya LCKMJ13I';
   if($('#cari').value){$('#cari').value='';render();}
   document.querySelectorAll('.nav button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.tab===t)));window.scrollTo(0,0);setGh();}
 function setSub(k){$('#u-pdf').hidden=k!=='pdf';$('#u-xls').hidden=k!=='xls';document.querySelectorAll('.seg button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.sub===k)));}
 /* data dipisah per plant: D selalu menunjuk ke data plant yang sedang dibuka */
+/* status cek dari huruf pertama Doc Reff: belum cek = R di semua plant, sudah cek = L di LJB dan M di LJK */
+const SC=()=>cur==='LJK'?'M':'L';
+function fixK(p){if(p!=='LJK')return;PD[p].src.forEach(s=>{for(const c in s.recv){const x=s.recv[c];if(!x.r||!x.k)continue;const k={L:0,R:0,X:0};x.r.forEach(a=>{const ch=String(a[6]||'').charAt(0).toUpperCase();k[ch==='M'?'L':ch==='R'?'R':'X']+=a[1];});x.k=k;}});}
 const PLS=['LJB','LJK'],mkP=()=>({orders:[],src:[],grd:[],info:null}),PD={LJB:mkP(),LJK:mkP()};
 let cur='LJB',D=PD.LJB;
 /* baris dengan kode sama dalam satu order digabung, kalau tidak stock yang sama terhitung dua kali */
@@ -209,7 +214,7 @@ async function muatDb(){
       try{const o=JSON.parse(localStorage.getItem('pelacak-order-v1'));if(o&&Array.isArray(o.orders)&&o.orders.length){PD.LJB.orders=o.orders;cur='LJB';dirtyO.LJB=1;lg=o.orders.length+' order dari versi lama dipindahkan ke plant LJB. Stock lama tidak ikut, unggah Excel stock LJB dan LJK.';}}catch(e){}
     }
   }catch(e){lg='Penyimpanan browser tidak bisa dipakai, data hilang saat halaman ditutup. Pakai Unduh cadangan.';}
-  PLS.forEach(p=>mig(PD[p]));D=PD[cur];if(lg)flush();return lg;
+  PLS.forEach(p=>{mig(PD[p]);fixK(p);});D=PD[cur];if(lg)flush();return lg;
 }
 function setPlant(p){
   if(!PD[p]||p===cur)return;
@@ -315,7 +320,7 @@ function tanyaPlant(nm){
   });
 }
 /* satu file Excel stock (Stock Detail) per plant: Jenis Proses berisi FRESH = stock fresh, selain itu = stock grade */
-async function bacaStock(f){
+async function bacaStock(f,pl){
   await muat(XLS,()=>window.XLSX);
   const wb=XLSX.read(await f.arrayBuffer(),{type:'array',dense:true}),nh=v=>String(v==null?'':v).replace(/\s+/g,' ').trim().toLowerCase();
   let rows=null,hi=-1;
@@ -333,7 +338,7 @@ async function bacaStock(f){
     if(/FRESH/i.test(jenis)){
       const g=FG[key]||(FG[key]={jenis:jenis,u:u,recv:{},rows:0}),x=g.recv[kode]||(g.recv[kode]={t:0,g:{}});
       x.t+=q;x.g[gr]=(x.g[gr]||0)+q;if(m&&!x.m)x.m=m;x.p=(x.p||0)+p;if(tglKey(d)>tglKey(x.d))x.d=d;
-      if(ki>=0){x.k=x.k||{L:0,R:0,X:0};x.k[({L:'L',R:'R'})[dr.charAt(0).toUpperCase()]||'X']+=q;}
+      if(ki>=0){x.k=x.k||{L:0,R:0,X:0};x.k[({[pl==='LJK'?'M':'L']:'L',R:'R'})[dr.charAt(0).toUpperCase()]||'X']+=q;}
       (x.r||(x.r=[])).push([p,r2(q),m,lb,cl,dg,dr,gr,d]);g.rows++;nf++;
     }else{
       const g=GG[key]||(GG[key]={jenis:jenis,u:u,S:[''],mp:{'':0},r:[]}),sx=v=>{let i=g.mp[v];if(i==null){i=g.S.length;g.mp[v]=i;g.S.push(v);}return i;};
@@ -354,7 +359,7 @@ async function stockUpload(fs){
     const nm=(f.name.match(/LJB|LJK/gi)||[]).map(x=>x.toUpperCase()).filter((v,i,a)=>a.indexOf(v)===i),p=nm.length===1?nm[0]:await tanyaPlant(f.name);
     if(!p){out.push(f.name+' dilewati.');continue;}
     msg('Membaca '+f.name+' untuk plant '+p+', mohon tunggu...');await new Promise(r=>setTimeout(r,30));
-    const nw=await bacaStock(f),old=PD[p].info;
+    const nw=await bacaStock(f,p),old=PD[p].info;
     if(old&&tglKey(nw.info.tgl)&&tglKey(nw.info.tgl)<tglKey(old.tgl)&&!confirm(f.name+' bertanggal '+nw.info.tgl+', lebih lama dari data '+p+' yang ada ('+old.tgl+'). Tetap dipakai?')){out.push(f.name+' dilewati.');continue;}
     PD[p].src=nw.src;PD[p].grd=nw.grd;PD[p].info=nw.info;dirtyS[p]=1;if(p===cur){gsel=null;gd=null;ud=null;}
     const i=nw.info;let t=p+': '+fmt(i.rows)+' baris dibaca. Stock fresh '+fmt(i.nf)+' baris ('+i.jf+' jenis proses), stock grade '+fmt(i.ng)+' baris ('+i.jg+' jenis proses).';
@@ -430,7 +435,7 @@ function card(o,oi,cnt,q,open){
   const P=prog(o),ds=o.rows.map(dsg).filter((x,i,a)=>x&&a.indexOf(x)===i),dm=q&&ds.some(x=>x.toUpperCase().indexOf(q)>=0),vis=q&&!dm?P.rs.filter(r=>r.code.indexOf(q)>=0):P.rs;if(q&&!vis.length)return '';
   const body=vis.map(r=>{
     const s=r.cl?(r.got>=r.qty*.9?[2,'Close']:[1,'Close, kurang '+fmt(r.qty-r.got)+' '+uS(r.u)]):stat(r),pc=r.qty?r.got/r.qty*100:0,sx=r.u!==P.u0?' '+uS(r.u):'',gr=Object.keys(r.g).sort().map(k=>'Grade '+k+' '+fmt(r.g[k])).join(', ');
-    const hk=r.k&&(r.k.L||r.k.R),rs=hk?' rowspan="2"':'',kt=hk?'<tr'+(r.cl?' class="cl"':'')+'><td colspan="5" class="k2"><span class="ck">Sudah cek (L) '+fmt(r.k.L)+'</span> &nbsp; <span class="cr">Belum cek (R) '+fmt(r.k.R)+'</span>'+(r.k.X?' &nbsp; Tanpa status '+fmt(r.k.X):'')+'</td></tr>':'';
+    const hk=r.k&&(r.k.L||r.k.R),rs=hk?' rowspan="2"':'',kt=hk?'<tr'+(r.cl?' class="cl"':'')+'><td colspan="5" class="k2"><span class="ck">Sudah cek ('+SC()+') '+fmt(r.k.L)+'</span> &nbsp; <span class="cr">Belum cek (R) '+fmt(r.k.R)+'</span>'+(r.k.X?' &nbsp; Tanpa status '+fmt(r.k.X):'')+'</td></tr>':'';
     return '<tr'+(r.cl?' class="cl"':'')+'><td'+rs+'>'+esc(r.code)+(ds.length>1&&dsg(r)?'<small>Design '+esc(dsg(r))+'</small>':'')+'<small>'+esc(gr)+'</small>'+(r.ag?'<small class="ag">Umur '+r.ag.map((v,i)=>v>0?'<span class="tg '+BC[i]+'">'+BS[i]+' '+fmt(v)+sx+'</span>':'').join(' ')+'</small>':'')+(r.d?'<small>Terakhir masuk '+esc(r.d)+'</small>':'')+(r.cl?'<small>Close '+esc(r.cl.split('-').reverse().join('-'))+'</small>':'')+(cnt[r.code]>1?'<small>Kode ini juga ada di order lain</small>':'')+'</td><td>'+fmt(r.qty)+sx+'</td><td>'+Object.keys(r.c||{}).sort(nCmp).map(k=>'<b>'+esc(k)+'</b><small>'+fmt(r.c[k])+' pcs</small>').join('')+'</td><td>'+fmt(r.got)+sx+'</td><td>'+(r.p>0?fmt(r.p):'-')+'</td><td'+(r.got<r.qty*.9?' class="kr"':'')+'>'+(r.got>r.qty?'lebih '+fmt(r.got-r.qty):fmt(r.qty-r.got))+sx+'</td><td'+rs+'>'+fmt(pc)+'%<br><span class="tg s'+s[0]+'">'+s[1]+'</span><div class="mini"><i style="width:'+Math.min(100,pc)+'%"></i></div><button class="btn rb" '+(r.cl?'data-ro':'data-rc')+'="'+oi+':'+r.i+'">'+(r.cl?'Buka kembali':'Tandai close')+'</button></td></tr>'+kt;
   }).join('');
   const sm=(lb,a)=>{const tq=a.reduce((s,r)=>s+conv(r.qty,r.u,P.u0),0),tg=a.reduce((s,r)=>s+conv(r.got,r.u,P.u0),0),tp=a.reduce((s,r)=>s+(r.p||0),0);return '<tr class="'+(lb?'st':'tt')+'"><td>'+(lb?esc(lb)+' ('+a.length+' warna)':'Total'+(a.length<P.rs.length?' hasil cari':'')+' ('+a.length+' warna)')+'</td><td>'+fmt(tq)+'</td><td></td><td>'+fmt(tg)+'</td><td>'+fmt(tp)+'</td><td>'+(tg>tq?'lebih '+fmt(tg-tq):fmt(tq-tg))+'</td><td></td></tr>';};
@@ -443,7 +448,7 @@ function card(o,oi,cnt,q,open){
   return '<details class="ord" data-oi="'+oi+'"'+(open||q?' open':'')+'><summary><div class="oh"><b>'+esc(bNama(o))+kdTxt([o],3)+(oDone(o)?' <span class="tg s2">Semua warna close</span>':'')+'</b><span>'+fmt(P.p)+'%</span></div><div class="sm">'+MT+'</div><div class="pg"><i style="width:'+Math.min(100,P.p)+'%"></i></div></summary>'+(gb?'<div class="bm">'+gb+'</div>':'')+'<div class="tx"><table><thead><tr><th>Kode</th><th>Order ('+u+')</th><th>CLR</th><th>Sudah ada ('+u+')</th><th>Pcs</th><th>Sisa ('+u+')</th><th>Capaian</th></tr></thead><tbody>'+body+'</tbody>'+tfoot+'</table></div><div class="ft"><span class="note">File '+esc(o.file||'')+'</span><span><button class="btn" data-is="'+oi+'">Lihat IS</button> <button class="btn" data-del="'+oi+'">Hapus</button></span></div></details>';
 }
 function render(){
-  renderG();
+  renderG();if(curTab==='lap')renderLap();
   $('#cpdf').textContent=D.orders.length?' ('+D.orders.length+')':'';$('#cxls').textContent=PLS.some(p=>PD[p].info)?' ('+PLS.filter(p=>PD[p].info).length+' dari 2 plant)':'';
   document.querySelectorAll('#pl button').forEach(b=>b.setAttribute('aria-current',String(b.dataset.pl===cur)));$('#pdfpl').innerHTML='Order yang ditambahkan masuk ke plant <b>'+cur+'</b>. Ganti plant di tombol LJB / LJK paling atas.';
   const q=$('#cari').value.trim().toUpperCase(),cnt={};
@@ -741,6 +746,49 @@ function dataPackingFresh(x,mode){
     cetak:tg+' '+p2(h12)+':'+p2(d.getMinutes())+':'+p2(d.getSeconds())+' '+(d.getHours()<12?'AM':'PM'),
     nama:'packing-list'+(mode==='warna'?'-per-warna':'')+'_'+cur+'_stock-fresh_'+(x.nama.replace(/^cek-order_[A-Z]+_stock-fresh_/,''))};
 }
+
+/* laporan stock: stock fresh + stock grade per plant, per jenis proses. Meter dikonversi ke yard, kg tetap kg. */
+const lapN=n=>n.toLocaleString('id-ID',{minimumFractionDigits:2,maximumFractionDigits:2}),jenisOf=n=>String(n).replace(/\s·\s(?:meter|yard|kg)$/,''),LU={K:'KG',Y:'YARD'},LO={K:0,Y:1};
+function lapAgg(p){
+  const x=PD[p],T={},R={};
+  const add=(g,j,u,pc,q)=>{if(!q&&!pc)return;if(u==='M'){q=conv(q,'M','Y');u='Y';}const k=g+'\u0001'+j+'\u0001'+u,e=R[k]||(R[k]={g:g,j:j,u:u,p:0,q:0}),t=T[u]||(T[u]={p:0,q:0});e.p+=pc;e.q+=q;t.p+=pc;t.q+=q;};
+  x.src.forEach(s=>{let pc=0,q=0;for(const c in s.recv){const v=s.recv[c];pc+=v.p||0;q+=v.t;}add('Stock fresh',jenisOf(s.file),s.unit,pc,q);});
+  x.grd.forEach(s=>{let pc=0,q=0;const r=s.r||[];for(let i=0;i<r.length;i++){pc+=r[i][10];q+=r[i][11];}add('Stock grade',jenisOf(s.name),s.unit,pc,q);});
+  return {T:T,rows:Object.keys(R).map(k=>R[k]).sort((a,b)=>(a.g<b.g?-1:a.g>b.g?1:0)||nCmp(a.j,b.j)||LO[a.u]-LO[b.u])};
+}
+function renderLap(){
+  const el=$('#laplist');
+  if(!D.info){el.innerHTML='<p class="note">Belum ada data stock plant '+cur+'. Unggah Excel stock di menu Upload.</p>';return;}
+  const A=lapAgg(cur),us=['K','Y'],tr=(a,c)=>'<tr'+(c?' class="'+c+'"':'')+'>'+a.map((v,i)=>'<td'+(i>=a.length-2?' class="n"':'')+'>'+v+'</td>').join('')+'</tr>';
+  let h='<p class="note"><b>Plant '+cur+'</b>: data stock '+esc(D.info.file)+', diunggah '+tUp(D.info.up)+'. Stock fresh dan stock grade digabung, satuan meter sudah dikonversi ke yard (1 yard = 0,9144 meter).</p>';
+  h+='<div class="bar"><button class="btn p" data-lapx="1">Unduh Excel</button></div>';
+  h+='<h2>Ringkasan plant '+cur+'</h2><table><thead><tr><th>Satuan</th><th class="n">Pcs</th><th class="n">Qty</th></tr></thead><tbody>'+us.filter(u=>A.T[u]).map(u=>tr([LU[u],lapN(A.T[u].p),lapN(A.T[u].q)])).join('')+'</tbody></table>';
+  h+='<h2>Rincian per jenis proses</h2><table><thead><tr><th>Jenis Proses</th><th>Satuan</th><th class="n">Pcs</th><th class="n">Qty</th></tr></thead><tbody>';
+  ['Stock fresh','Stock grade'].forEach(g=>{
+    const rs=A.rows.filter(r=>r.g===g);if(!rs.length)return;
+    h+='<tr class="lg"><td colspan="4">'+g+'</td></tr>'+rs.map(r=>tr([esc(r.j),LU[r.u],lapN(r.p),lapN(r.q)])).join('');
+    us.forEach(u=>{const t=rs.filter(r=>r.u===u);if(t.length)h+=tr(['Total '+g.toLowerCase(),LU[u],lapN(t.reduce((a,r)=>a+r.p,0)),lapN(t.reduce((a,r)=>a+r.q,0))],'tt');});
+  });
+  h+='</tbody></table>';
+  const ap=PLS.filter(p=>PD[p].info);
+  if(ap.length>1){
+    const G={};h+='<h2>Semua plant</h2><table><thead><tr><th>Plant</th><th>Satuan</th><th class="n">Pcs</th><th class="n">Qty</th></tr></thead><tbody>';
+    ap.forEach(p=>{const a=lapAgg(p);us.forEach(u=>{if(!a.T[u])return;const g=G[u]||(G[u]={p:0,q:0});g.p+=a.T[u].p;g.q+=a.T[u].q;h+=tr([p,LU[u],lapN(a.T[u].p),lapN(a.T[u].q)]);});});
+    us.forEach(u=>{if(G[u])h+=tr(['Total semua plant',LU[u],lapN(G[u].p),lapN(G[u].q)],'tt');});h+='</tbody></table>';
+  }
+  el.innerHTML=h;
+}
+$('#laplist').addEventListener('click',async e=>{
+  if(!e.target.closest('[data-lapx]'))return;
+  try{
+    const ap=PLS.filter(p=>PD[p].info),us=['K','Y'],r2=x=>Math.round(x*100)/100,sm=[['Plant','Satuan','Pcs','Qty']],rc=[['Plant','Kelompok','Jenis Proses','Satuan','Pcs','Qty']],G={};
+    ap.forEach(p=>{const a=lapAgg(p);us.forEach(u=>{if(!a.T[u])return;const g=G[u]||(G[u]={p:0,q:0});g.p+=a.T[u].p;g.q+=a.T[u].q;sm.push([p,LU[u],r2(a.T[u].p),r2(a.T[u].q)]);});a.rows.forEach(r=>rc.push([p,r.g,r.j,LU[r.u],r2(r.p),r2(r.q)]));});
+    if(ap.length>1)us.forEach(u=>{if(G[u])sm.push(['Semua plant',LU[u],r2(G[u].p),r2(G[u].q)]);});
+    if(ap.length<1){msg('Belum ada data stock untuk dilaporkan.',1);return;}
+    await xlsBuat([{nama:'Ringkasan',aoa:sm},{nama:'Rincian',aoa:rc},{nama:'Info',aoa:[['Laporan stock (stock fresh + stock grade), meter dikonversi ke yard (1 yard = 0,9144 meter)'],['Diunduh '+tUp(Date.now())]]}],'laporan-stock_'+stamp()+'.xlsx');
+    msg('Laporan stock diunduh: laporan-stock_'+stamp()+'.xlsx.');
+  }catch(err){msg(err.message||'Gagal membuat file.',1);}
+});
 function unduhBlob(blob,nama){const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=nama;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000);}
 async function xlsBuat(lembar,nama){
   await muat(XLS,()=>window.XLSX);
@@ -769,7 +817,7 @@ function dataFresh(){
     });
   });
   const ts=D.src.map(s=>s.up||0).filter(Boolean),ket=['Plant '+cur+' - Data stock fresh'+(buyer&&B.length?': '+B[0][0]:': semua buyer'),q?'Pencarian: '+q:'Tanpa pencarian (semua data)','Jumlah: '+B.length+' kode, '+fmt(B.reduce((a,r)=>a+(r[10]||0),0))+' pcs. '+Object.keys(tot).map(u=>'Order '+fmt(tot[u].q)+' '+uS(u)+', sudah ada '+fmt(tot[u].g)+' '+uS(u)).join('; '),ts.length?'Data hasil diunggah terakhir '+tUp(Math.max.apply(null,ts)):'Waktu unggah data hasil belum tercatat','Diunduh '+tUp(Date.now())];
-  const AG=['Umur di bawah 1 tahun','Umur 1 sampai 2 tahun','Umur di atas 2 tahun'],H=['Buyer','O.P','Kontrak','Tujuan','Kirim','Design','Kode','Satuan','Order','Sudah ada','Pcs','Sisa','Lebih','Capaian (%)','Status','Terakhir masuk','Sudah cek (L)','Belum cek (R)','Tanpa status','Tanggal close','CLR (pcs per CLR)'].concat(AG);
+  const AG=['Umur di bawah 1 tahun','Umur 1 sampai 2 tahun','Umur di atas 2 tahun'],H=['Buyer','O.P','Kontrak','Tujuan','Kirim','Design','Kode','Satuan','Order','Sudah ada','Pcs','Sisa','Lebih','Capaian (%)','Status','Terakhir masuk','Sudah cek ('+SC()+')','Belum cek (R)','Tanpa status','Tanggal close','CLR (pcs per CLR)'].concat(AG);
   const pk=[['Buyer',100,'l',0],['O.P',38,'l',1],['Kode',70,'l',6],['Design',95,'l',5],['Order',46,'r',8],['Sudah ada',50,'r',9],['Pcs',34,'r',10],['CLR',80,'l',20],['Sisa',46,'r',11],['Lebih',40,'r',12],['%',34,'r',13],['Status',92,'l',14],['Terakhir masuk',58,'l',15],['L',38,'r',16],['R',40,'r',17]];
   return {raw:RW,n:B.length,nama:'cek-order_'+cur+'_stock-fresh_'+(buyer&&B.length?nmFile(B[0][0])+'_':'')+stamp(),judul:'Cek Order '+cur+' - Data stock fresh',info:ket,
     lembar:[{nama:'Stock fresh',aoa:[H].concat(B)},{nama:'Info',aoa:ket.map(x=>[x])}],kol:pk.map(c=>({h:c[0],w:c[1],a:c[2]})),bar:B.map(r=>pk.map(c=>r[c[3]]===''||r[c[3]]==null?'':(typeof r[c[3]]==='number'?fmt(r[c[3]]):r[c[3]])))};
@@ -861,7 +909,7 @@ async function impor(txt){
   if(PLS.some(p=>po[p]&&PD[p].orders.length)&&!confirm((lama?'Cadangan versi lama, belum ada pemisahan plant. Semua order dimasukkan ke LJB, data stock di cadangan tidak dipakai (unggah ulang Excel stock). ':'')+'Ganti order di aplikasi ini dengan isi cadangan ('+nb+')?')){msg('Dibatalkan. Data tidak berubah.');return;}
   let np=0,ns=0;
   for(const p of PLS){if(!po[p])continue;const old=PD[p].orders;PD[p].orders=po[p];mig(PD[p]);
-    const st=o.plants&&o.plants[p]&&o.plants[p].stock;if(st&&Array.isArray(st.src)&&Array.isArray(st.grd)){PD[p].src=st.src;PD[p].grd=st.grd;PD[p].info=st.info||null;dirtyS[p]=1;ns++;if(p===cur){gsel=null;gd=null;ud=null;}}
+    const st=o.plants&&o.plants[p]&&o.plants[p].stock;if(st&&Array.isArray(st.src)&&Array.isArray(st.grd)){PD[p].src=st.src;PD[p].grd=st.grd;PD[p].info=st.info||null;fixK(p);dirtyS[p]=1;ns++;if(p===cur){gsel=null;gd=null;ud=null;}}
     try{for(const x of old)await kvDel('pdf:'+p+':'+x.id);const pf=(o.plants&&o.plants[p]&&o.plants[p].pdfs)||{};for(const id in pf){await kvPut('pdf:'+p+':'+id,{name:pf[id].name,buf:unb64(pf[id].b64)});np++;}}catch(e){}}
   buyer=null;save();render();
   msg('Cadangan diimpor: '+nb+(np?', '+np+' file IS':'')+(ns?', data stock '+ns+' plant':'')+'.'+(lama?' Cadangan versi lama, semua order dimasukkan ke LJB. Unggah Excel stock LJB dan LJK untuk mengisi stock.':''));
